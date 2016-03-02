@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <pthread>
+#include <pthread.h>
 
 using namespace std;
 

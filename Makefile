@@ -2,7 +2,7 @@
 CC = gcc
 CXX = g++
 AR = ar
-CXXFLAGS = -L. -Wall -g -pthread
+CXXFLAGS = -L. -Wall -g -pthread -std=c++11
 ARFLAGS = rcs
 
 OBJS1 = protocol.o binder.o
@@ -21,7 +21,7 @@ OBJS = ${OBJS1} ${OBJS2} ${OBJS3} ${OBJS4}
 DEPENDS = ${OBJS:.o=.d}
 EXECS = ${EXEC1} ${EXEC2}
 
-PHONY: all clean
+.PHONY: all clean
 
 all: ${EXECS}
 
