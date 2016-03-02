@@ -42,7 +42,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
     switch (res_loc_segment->type) {
         case LOCATION_SUCCESS:
             res_loc_success_message = dynamic_cast<RES_LOC_SUCCESS_MESSAGE*>(res_loc_message);
-            SERVER_ADDRESS = res_loc_success_message->server;
+            SERVER_ADDRESS = res_loc_success_message->serverID;
             SERVER_PORT = res_loc_success_message->port;
             break;
         case LOCATION_FAILURE:
