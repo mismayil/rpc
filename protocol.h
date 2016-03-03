@@ -30,11 +30,11 @@
 // return codes
 #define RETURN_SUCCESS    0
 #define RETURN_FAILURE   -1
-#define REGISTER_SUCCESS  0
+#define REGISTER_SUCCESS  5
 #define REGISTER_FAILURE -2
-#define LOCATION_SUCCESS  0
+#define LOCATION_SUCCESS  6
 #define LOCATION_FAILURE -3
-#define EXECUTE_SUCCESS   0
+#define EXECUTE_SUCCESS   7
 #define EXECUTE_FAILURE  -4
 
 // error codes
@@ -50,20 +50,12 @@ protected:
     char *buf;
 public:
     virtual ~MESSAGE();
-};
-
-class REQ_MESSAGE: public MESSAGE {
-public:
     virtual char* marshall()=0;
-};
-
-class RES_MESSAGE: public MESSAGE {
-public:
-    virtual void unmarshall()=0;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // register request message
-class REQ_REG_MESSAGE: public REQ_MESSAGE {
+class REQ_REG_MESSAGE: public MESSAGE {
 public:
     char *serverID;
     int port;
@@ -71,66 +63,74 @@ public:
     int *argTypes;
     REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes);
     char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // register success response message
-class RES_REG_SUCCESS_MESSAGE: public RES_MESSAGE {
+class RES_REG_SUCCESS_MESSAGE: public MESSAGE {
 public:
     int reasonCode;
     RES_REG_SUCCESS_MESSAGE(int reasonCode);
-    void unmarshall() override;
+    char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // location request message
-class REQ_LOC_MESSAGE: public REQ_MESSAGE {
+class REQ_LOC_MESSAGE: public MESSAGE {
 public:
     char *name;
     int *argTypes;
     REQ_LOC_MESSAGE(char *name, int *argTypes);
     char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // location success response message
-class RES_LOC_SUCCESS_MESSAGE: public RES_MESSAGE {
+class RES_LOC_SUCCESS_MESSAGE: public MESSAGE {
 public:
     char *serverID;
     int port;
     RES_LOC_SUCCESS_MESSAGE(char *serverID, int port);
-    void unmarshall() override;
+    char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // execute request message
-class REQ_EXEC_MESSAGE: public REQ_MESSAGE {
+class REQ_EXEC_MESSAGE: public MESSAGE {
 public:
     char *name;
     int *argTypes;
     void **args;
     REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args);
     char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // execute success response message
-class RES_EXEC_SUCCESS_MESSAGE: public RES_MESSAGE {
+class RES_EXEC_SUCCESS_MESSAGE: public MESSAGE {
 public:
     char *name;
     int *argTypes;
     void **args;
     RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, void **args);
-    void unmarshall() override;
+    char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // terminate message
-class REQ_TERM_MESSAGE: public REQ_MESSAGE {
+class REQ_TERM_MESSAGE: public MESSAGE {
 public:
     char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // failure response message
-class RES_FAILURE_MESSAGE: public RES_MESSAGE {
+class RES_FAILURE_MESSAGE: public MESSAGE {
 public:
     int reasonCode;
     RES_FAILURE_MESSAGE(int reasonCode);
-    void unmarshall() override;
+    char* marshall() override;
+    static MESSAGE* unmarshall(char *msg);
 };
 
 // tcp segment
@@ -143,7 +143,7 @@ public:
     SEGMENT(int type, MESSAGE *message);
     ~SEGMENT();
     char* encapsulate();
-    void decapsulate();
+    static SEGMENT* decapsulate(int type, char *msg);
 };
 
 // error printing function
@@ -160,5 +160,8 @@ int sendSegment(int sock_fd, SEGMENT *segment);
 
 // receives a tcp segment
 SEGMENT* recvSegment(int sock_fd);
+
+// receives a message of type
+MESSAGE* recvMessage(int sock_fd, int type);
 
 #endif
