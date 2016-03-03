@@ -161,7 +161,19 @@ int sendSegment(int sock_fd, SEGMENT *segment);
 // receives a tcp segment
 SEGMENT* recvSegment(int sock_fd);
 
-// receives a message of type
-MESSAGE* recvMessage(int sock_fd, int type);
+/*
+* utility functions
+*/
+short ctos(char *str);
+int ctoi(char *str);
+long ctol(char *str);
+float ctof(char *str);
+double ctod(char *str);
+
+// marshalls argTypes and args
+char* marshallArgs(int *argTypes, void **args);
+
+// unmarshalls argTypes and args
+void unmarshallArgs(char *msg, int *argTypes, void **args);
 
 #endif
