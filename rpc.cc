@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include "rpc.h"
 #include "protocol.h"
+#include "util.h"
 
 using namespace std;
 

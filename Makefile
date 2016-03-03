@@ -5,10 +5,10 @@ AR = ar
 CXXFLAGS = -L. -Wall -g -pthread -std=c++11
 ARFLAGS = rcs
 
-OBJS1 = protocol.o binder.o
+OBJS1 = protocol.o util.o sock.o binder.o
 EXEC1 = binder
 
-OBJS2 = protocol.o rpc.o
+OBJS2 = protocol.o util.o sock.o rpc.o
 EXEC2 = librpc.a
 
 OBJS3 = server.o server_functions.o server_functions_skels.o

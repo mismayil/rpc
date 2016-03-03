@@ -62,6 +62,7 @@ public:
     char *name;
     int *argTypes;
     REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes);
+    ~REQ_REG_MESSAGE();
     char* marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -81,6 +82,7 @@ public:
     char *name;
     int *argTypes;
     REQ_LOC_MESSAGE(char *name, int *argTypes);
+    ~REQ_LOC_MESSAGE();
     char* marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -91,6 +93,7 @@ public:
     char *serverID;
     int port;
     RES_LOC_SUCCESS_MESSAGE(char *serverID, int port);
+    ~RES_LOC_SUCCESS_MESSAGE();
     char* marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -102,6 +105,7 @@ public:
     int *argTypes;
     void **args;
     REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args);
+    ~REQ_EXEC_MESSAGE();
     char* marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -113,6 +117,7 @@ public:
     int *argTypes;
     void **args;
     RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, void **args);
+    ~RES_EXEC_SUCCESS_MESSAGE();
     char* marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -145,30 +150,6 @@ public:
     char* encapsulate();
     static SEGMENT* decapsulate(int type, char *msg);
 };
-
-// error printing function
-void error(char *msg);
-
-// copies data to the buffer
-void copy(char *buf, void *v, int len=1, int type=ARG_CHAR);
-
-// connects to the host with given address and port
-int connectTo(char *address, int port);
-
-// sends a tcp segment
-int sendSegment(int sock_fd, SEGMENT *segment);
-
-// receives a tcp segment
-SEGMENT* recvSegment(int sock_fd);
-
-/*
-* utility functions
-*/
-short ctos(char *str);
-int ctoi(char *str);
-long ctol(char *str);
-float ctof(char *str);
-double ctod(char *str);
 
 // marshalls argTypes and args
 char* marshallArgs(int *argTypes, void **args);

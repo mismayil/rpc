@@ -1,13 +1,7 @@
 #include <iostream>
-#include <sstream>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #include <vector>
+#include <cstring>
+#include "util.h"
 #include "protocol.h"
 
 using namespace std;
@@ -85,6 +79,12 @@ MESSAGE::~MESSAGE() {
 MESSAGE* MESSAGE::unmarshall(char *msg) { return NULL; }
 
 REQ_REG_MESSAGE::REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes) : serverID(serverID), port(port), name(name), argTypes(argTypes) {}
+
+REQ_REG_MESSAGE::~REQ_REG_MESSAGE() {
+    if (serverID) delete [] serverID;
+    if (name) delete [] name;
+    if (argTypes) delete [] argTypes;
+}
 
 char* REQ_REG_MESSAGE::marshall() {
     int argc = 0;
@@ -198,6 +198,11 @@ MESSAGE* RES_REG_SUCCESS_MESSAGE::unmarshall(char *msg) {
 
 REQ_LOC_MESSAGE::REQ_LOC_MESSAGE(char *name, int *argTypes) : name(name), argTypes(argTypes) {}
 
+REQ_LOC_MESSAGE::~REQ_LOC_MESSAGE() {
+    if (name) delete [] name;
+    if (argTypes) delete [] argTypes;
+}
+
 char* REQ_LOC_MESSAGE::marshall() {
     int argc = 0;
 
@@ -266,6 +271,10 @@ MESSAGE* REQ_LOC_MESSAGE::unmarshall(char *msg) {
 
 RES_LOC_SUCCESS_MESSAGE::RES_LOC_SUCCESS_MESSAGE(char *serverID, int port) : serverID(serverID), port(port) {}
 
+RES_LOC_SUCCESS_MESSAGE::~RES_LOC_SUCCESS_MESSAGE() {
+    if (serverID) delete [] serverID;
+}
+
 char* RES_LOC_SUCCESS_MESSAGE::marshall() {
     int len = strlen(serverID) + 1 + SIZE_INT + 1;
     buf = new char[len];
@@ -312,6 +321,12 @@ MESSAGE* RES_LOC_SUCCESS_MESSAGE::unmarshall(char *msg) {
 }
 
 REQ_EXEC_MESSAGE::REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args) : name(name), argTypes(argTypes), args(args) {}
+
+REQ_EXEC_MESSAGE::~REQ_EXEC_MESSAGE() {
+    if (name) delete [] name;
+    if (argTypes) delete [] argTypes;
+    // delete args, how?
+}
 
 char* REQ_EXEC_MESSAGE::marshall() {
     int len = strlen(name) + 1;
@@ -372,6 +387,12 @@ MESSAGE* REQ_TERM_MESSAGE::unmarshall(char *msg) {
 }
 
 RES_EXEC_SUCCESS_MESSAGE::RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, void **args) : name(name), argTypes(argTypes), args(args) {}
+
+RES_EXEC_SUCCESS_MESSAGE::~RES_EXEC_SUCCESS_MESSAGE() {
+    if (name) delete [] name;
+    if (argTypes) delete [] argTypes;
+    // delete args, how?
+}
 
 char* RES_EXEC_SUCCESS_MESSAGE::marshall() {
     int len = strlen(name) + 1;
@@ -436,109 +457,6 @@ MESSAGE* RES_FAILURE_MESSAGE::unmarshall(char *msg) {
     reasonCode = ctoi(msg);
     MESSAGE *message = new RES_FAILURE_MESSAGE(reasonCode);
     return message;
-}
-
-int connectTo(char *address, int port) {
-    int sock_fd;
-    struct sockaddr_in sock_addr;
-    struct hostent *host;
-
-    // open a socket for connection
-    sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock_fd < 0) return ESOCKET;
-
-    // clear the address
-    memset(&sock_addr, 0, sizeof(sock_addr));
-
-    // get the address info
-    host = gethostbyname(address);
-    if (!host) return ENOHOST;
-
-    // populate the address
-    sock_addr.sin_family = AF_INET;
-    memcpy(&sock_addr.sin_addr.s_addr, host->h_addr, host->h_length);
-    sock_addr.sin_port = htons(port);
-
-    // connect to the host
-    if (connect(sock_fd, (struct sockaddr *) &sock_addr, sizeof(sock_addr)) < 0) return ECONNECT;
-
-    return sock_fd;
-}
-
-int sendSegment(int sock_fd, SEGMENT *segment) {
-    char *buf = segment->encapsulate();
-    return send(sock_fd, buf, strlen(buf) + 1, 0);
-}
-
-SEGMENT* recvSegment(int sock_fd) {
-    int length, type;
-    char intbuf[SIZE_INT];
-
-    // receive the length
-    recv(sock_fd, intbuf, SIZE_INT, 0);
-    length = ctoi(intbuf);
-
-    // receive the type
-    recv(sock_fd, intbuf, SIZE_INT, 0);
-    type = ctoi(intbuf);
-
-    // receive the message
-    int msglen = length - SIZE_INT * 2;
-    char msg[msglen];
-    recv(sock_fd, msg, msglen, 0);
-
-    SEGMENT *segment = SEGMENT::decapsulate(type, msg);
-
-    return segment;
-}
-
-void error(char *msg) {
-    cerr << msg << endl;
-    exit(1);
-}
-
-void copy(char *buf, void *v, int len, int type) {
-    stringstream ss;
-    int size = 0;
-    char *c; short *s; int *i; long *l;
-    float *f; double *d;
-
-    for (int k = 0; k < len; k++) {
-        switch (type) {
-            case ARG_CHAR:
-                c = (char *) v;
-                ss << *(c + k);
-                size += SIZE_CHAR;
-                break;
-            case ARG_SHORT:
-                s = (short *) v;
-                ss << *(s + k);
-                size += SIZE_SHORT;
-                break;
-            case ARG_INT:
-                i = (int *) v;
-                ss << *(i + k);
-                size += SIZE_INT;
-                break;
-            case ARG_LONG:
-                l = (long *) v;
-                ss << *(l + k);
-                size += SIZE_LONG;
-                break;
-            case ARG_FLOAT:
-                f = (float *) v;
-                ss << *(f + k);
-                size += SIZE_FLOAT;
-                break;
-            case ARG_DOUBLE:
-                d = (double *) v;
-                ss << *(d + k);
-                size += SIZE_DOUBLE;
-                break;
-        }
-    }
-
-    memcpy(buf, ss.str().c_str(), size);
 }
 
 char* marshallArgs(int *argTypes, void **args) {
@@ -709,48 +627,8 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
                     darg[j] = ctos(doublebuf);
                     msgptr += SIZE_DOUBLE;
                 }
-                args[i] =(void *) darg;
+                args[i] = (void *) darg;
                 break;
         }
     }
-}
-
-short ctos(char *str) {
-    stringstream ss;
-    ss << str;
-    short s;
-    ss >> s;
-    return s;
-}
-
-int ctoi(char *str) {
-    stringstream ss;
-    ss << str;
-    int i;
-    ss >> i;
-    return i;
-}
-
-long ctol(char *str) {
-    stringstream ss;
-    ss << str;
-    long l;
-    ss >> l;
-    return l;
-}
-
-float ctof(char *str) {
-    stringstream ss;
-    ss << str;
-    float f;
-    ss >> f;
-    return f;
-}
-
-double ctod(char *str) {
-    stringstream ss;
-    ss << str;
-    double d;
-    ss >> d;
-    return d;
 }
