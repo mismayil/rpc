@@ -2,6 +2,7 @@
 #define __PROTOCOL_H__
 
 #include "rpc.h"
+#include "sock.h"
 
 /*
 * Protocol definitions
@@ -43,6 +44,9 @@
 #define ECONNECT         -7   // error connecting
 #define EUNKNOWN         -8   // unknown error
 #define ENOSERVER        -9   // error no available server
+#define ETHREAD          -10  // error creating thread
+#define EACCEPT          -11  // error accepting connection
+#define EBIND            -12  // error binding socket
 
 // rpc general message
 class MESSAGE {
@@ -149,6 +153,20 @@ public:
     ~SEGMENT();
     char* encapsulate();
     static SEGMENT* decapsulate(int type, char *msg);
+};
+
+// server socket for connections with binder
+class SERVER_BINDER_SOCK: public SOCK {
+public:
+    SERVER_BINDER_SOCK(int portnum);
+    void handle_request(int i);
+};
+
+// server socket for connections with clients
+class SERVER_CLIENT_SOCK: public SOCK {
+public:
+    SERVER_CLIENT_SOCK(int portnum);
+    void handle_request(int i);
 };
 
 // marshalls argTypes and args
