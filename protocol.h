@@ -21,6 +21,7 @@
 #define ARG_TYPE_SHIFT    16
 #define ARG_TYPE_MASK     0x00ff0000
 #define ARG_LEN_MASK      0x0000ffff
+#define ARG_IO_MASK       0xff000000
 
 // request types
 #define REQUEST_REGISTER  1
@@ -47,6 +48,8 @@
 #define ETHREAD          -10  // error creating thread
 #define EACCEPT          -11  // error accepting connection
 #define EBIND            -12  // error binding socket
+#define ENOFUNCTION      -13  // error no function found
+#define EIBINDER         -14  // error invalid binder
 
 // rpc general message
 class MESSAGE {
@@ -159,14 +162,14 @@ public:
 class SERVER_BINDER_SOCK: public SOCK {
 public:
     SERVER_BINDER_SOCK(int portnum);
-    void handle_request(int i);
+    int handle_request(int i);
 };
 
 // server socket for connections with clients
 class SERVER_CLIENT_SOCK: public SOCK {
 public:
     SERVER_CLIENT_SOCK(int portnum);
-    void handle_request(int i);
+    int handle_request(int i);
 };
 
 // marshalls argTypes and args
