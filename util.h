@@ -22,10 +22,9 @@ int connectTo(char *address, int port);
 int sendSegment(int sock_fd, SEGMENT *segment);
 
 // receives a tcp segment
-SEGMENT* recvSegment(int sock_fd);
+int recvSegment(int sock_fd, SEGMENT *segment);
 
-class FUNC_SIGNATURE {
-public:
+struct FUNC_SIGNATURE {
     char *name;
     std::vector<int> iargTypes; // input arg types
     std::vector<int> oargTypes; // output arg types
@@ -33,8 +32,8 @@ public:
 
     FUNC_SIGNATURE(char *name, int *argTypes);
 
-    bool operator<(const FUNC_SIGNATURE &fs);
-    bool operator==(const FUNC_SIGNATURE &fs);
+    bool operator<(const FUNC_SIGNATURE &fs) const;
+    bool operator==(const FUNC_SIGNATURE &fs) const;
 };
 
 /*
@@ -46,4 +45,5 @@ long ctol(char *str);
 float ctof(char *str);
 double ctod(char *str);
 uint32_t htou(char *hostname);
+
 #endif

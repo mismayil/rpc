@@ -50,6 +50,10 @@
 #define EBIND            -12  // error binding socket
 #define ENOFUNCTION      -13  // error no function found
 #define EIBINDER         -14  // error invalid binder
+#define ENOLOCATION      -15  // error no location found
+
+// warning codes
+#define WDUPREG          10   // warning duplicate registration
 
 // rpc general message
 class MESSAGE {

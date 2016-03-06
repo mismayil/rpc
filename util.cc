@@ -25,7 +25,7 @@ FUNC_SIGNATURE::FUNC_SIGNATURE(char *name, int *argTypes): name(name) {
     }
 }
 
-bool FUNC_SIGNATURE::operator<(const FUNC_SIGNATURE &fs) {
+bool FUNC_SIGNATURE::operator<(const FUNC_SIGNATURE &fs) const {
     int n = strcmp(name, fs.name);
     if (n < 0) return true;
     if (n > 0) return false;
@@ -50,7 +50,7 @@ bool FUNC_SIGNATURE::operator<(const FUNC_SIGNATURE &fs) {
     return true;
 }
 
-bool FUNC_SIGNATURE::operator==(const FUNC_SIGNATURE &fs) {
+bool FUNC_SIGNATURE::operator==(const FUNC_SIGNATURE &fs) const {
     int n = strcmp(name, fs.name);
     if (n) return false;
     if (iargTypes.size() != fs.iargTypes.size()) return false;
@@ -100,26 +100,26 @@ int sendSegment(int sock_fd, SEGMENT *segment) {
     return send(sock_fd, buf, strlen(buf) + 1, 0);
 }
 
-SEGMENT* recvSegment(int sock_fd) {
+int recvSegment(int sock_fd, SEGMENT *segment) {
     int length, type;
     char intbuf[SIZE_INT];
 
     // receive the length
-    recv(sock_fd, intbuf, SIZE_INT, 0);
+    if (recv(sock_fd, intbuf, SIZE_INT, 0) <= 0) return RETURN_FAILURE;
     length = ctoi(intbuf);
 
     // receive the type
-    recv(sock_fd, intbuf, SIZE_INT, 0);
+    if (recv(sock_fd, intbuf, SIZE_INT, 0) <= 0) return RETURN_FAILURE;
     type = ctoi(intbuf);
 
     // receive the message
     int msglen = length - SIZE_INT * 2;
     char msg[msglen];
-    recv(sock_fd, msg, msglen, 0);
+    if (recv(sock_fd, msg, msglen, 0) <= 0) return RETURN_FAILURE;
 
-    SEGMENT *segment = SEGMENT::decapsulate(type, msg);
+    segment = SEGMENT::decapsulate(type, msg);
 
-    return segment;
+    return RETURN_SUCCESS;
 }
 
 void error(string msg) {
@@ -214,7 +214,7 @@ double ctod(char *str) {
 uint32_t htou(char *hostname) {
     struct hostent *host = gethostbyname(hostname);
     struct in_addr **addr_list = (struct in_addr **) host->h_addr_list;
-    struct in_addr *host_in_addr;
-    inet_aton(inet_ntoa(*addr_list[0]), host_in_addr);
-    return host_in_addr->s_addr;
+    struct in_addr host_in_addr;
+    inet_aton(inet_ntoa(*addr_list[0]), &host_in_addr);
+    return host_in_addr.s_addr;
 }
