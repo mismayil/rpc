@@ -2,26 +2,26 @@
 CC = gcc
 CXX = g++
 AR = ar
-CXXFLAGS = -L. -Wall -g -pthread -std=c++11
+CXXFLAGS = -Wall -g -pthread -std=c++11
 ARFLAGS = rcs
 
-OBJS1 = protocol.o util.o sock.o binder.o
+OBJECTS1 = protocol.o util.o sock.o binder.o
 EXEC1 = binder
 
-OBJS2 = protocol.o util.o sock.o rpc.o
+OBJECTS2 = protocol.o util.o sock.o rpc.o
 EXEC2 = librpc.a
 
-OBJS3 = server.o server_functions.o server_functions_skels.o
+OBJECTS3 = server.o server_functions.o server_function_skels.o
 EXEC3 = server
 
-OBJS4 = client.o
+OBJECTS4 = client.o
 EXEC4 = client
 
-OBJS = ${OBJS1} ${OBJS2} ${OBJS3} ${OBJS4}
-DEPENDS = ${OBJS:.o=.d}
-EXECS = ${EXEC1} ${EXEC2}
+OBJECTS = ${OBJECTS1} ${OBJECTS2} ${OBJECTS3} ${OBJECTS4}
+DEPENDS = ${OBJECTS:.o=.d}
+EXECS = ${EXEC1} ${EXEC2} ${EXEC3} ${EXEC4}
 
-.PHONY: all clean
+.PHONY: all clean ${EXECS}
 
 all: ${EXECS}
 
@@ -31,23 +31,23 @@ client.o: client.c
 server_functions.o: server_functions.c
 	${CC} -c server_functions.c -o server_functions.o
 
-server_functions_skels.o: server_functions_skels.c
-	${CC} -c server_functions_skels.c -o server_functions_skels.o
+server_function_skels.o: server_function_skels.c
+	${CC} -c server_function_skels.c -o server_function_skels.o
 
 server.o: server.c
 	${CC} -c server.c -o server.o
 
-${EXEC1}: ${OBJS1}
+${EXEC1}: ${OBJECTS1}
 	${CXX} ${CXXFLAGS} $^ -o $@
 
-${EXEC2}: ${OBJS2}
+${EXEC2}: ${OBJECTS2}
 	${AR} ${ARFLAGS} $@ $^
 
-${EXEC3}: ${OBJS3}
-	${CXX} ${CXXFLAGS} $^ -lrpc -o $@
+${EXEC3}: ${OBJECTS3}
+	${CXX} ${CXXFLAGS} -L. $^ -lrpc -o $@
 
-${EXEC4}: ${OBJS4}
-	${CXX} ${CXXFLAGS} $^ -lrpc -o $@
+${EXEC4}: ${OBJECTS4}
+	${CXX} ${CXXFLAGS} -L. $^ -lrpc -o $@
 
 -include ${DEPENDS}
 
