@@ -28,6 +28,7 @@ SERVER_CLIENT_SOCK::SERVER_CLIENT_SOCK(int portnum): SOCK(portnum) {}
 
 // handle binder requests
 int SERVER_BINDER_SOCK::handle_request(int i) {
+    INFO("in SERVER_BINDER_SOCK handle_request");
     int binder_sock_fd = connections[i];
 
     // receive a terminate request from the binder
@@ -58,6 +59,7 @@ int SERVER_BINDER_SOCK::handle_request(int i) {
 
 // handle client requests
 int SERVER_CLIENT_SOCK::handle_request(int i) {
+    INFO("in SERVER_CLIENT_SOCK handle_request");
     int client_sock_fd = connections[i];
 
     // receive an execute request from the client
@@ -103,28 +105,35 @@ int SERVER_CLIENT_SOCK::handle_request(int i) {
 
 // handle binder socket
 void *handle_binder(void *args) {
+    INFO("in handle_binder");
     sock_binder->run();
     return NULL;
 }
 
 // handle client socket
 void *handle_clients(void *args) {
+    INFO("in handle_clients");
     sock_client->run();
     return NULL;
 }
 
 int rpcInit() {
+    INFO("in rpcInit");
     int error;
 
     sock_binder = new SERVER_BINDER_SOCK(0);
     error = sock_binder->getError();
     if (error) return error;
+    INFO("SERVER_BINDER_SOCK created");
 
     sock_client = new SERVER_CLIENT_SOCK(0);
     error = sock_client->getError();
     if (error) return error;
+    INFO("SERVER_CLIENT_SOCK created");
 
     if (pthread_create(&thread_binder, NULL, &handle_binder, NULL)) return ETHREAD;
+
+    INFO("thread_binder created");
 
     return RETURN_SUCCESS;
 }
@@ -200,6 +209,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 int rpcCacheCall(char* name, int* argTypes, void** args);
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
+    INFO("in rpcRegister");
     char *BINDER_ADDRESS;
     int BINDER_PORT;
     int binder_sock_fd;
@@ -208,14 +218,22 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     BINDER_ADDRESS = getenv("BINDER_ADDRESS");
     BINDER_PORT = atoi(getenv("BINDER_PORT"));
 
+    DEBUG("BINDER_ADDRESS", BINDER_ADDRESS);
+    DEBUG("BINDER_PORT", BINDER_PORT);
+
     // connect to the binder
     binder_sock_fd = connectTo(BINDER_ADDRESS, BINDER_PORT);
     if (binder_sock_fd < 0) return binder_sock_fd;
+
+    INFO("connected to binder");
 
     // send a register request to the binder
     MESSAGE *req_reg_message = new REQ_REG_MESSAGE(sock_client->getHostName(), sock_client->getPort(), name, argTypes);
     SEGMENT *req_reg_segment = new SEGMENT(REQUEST_REGISTER, req_reg_message);
     sendSegment(binder_sock_fd, req_reg_segment);
+    DEBUG("server", sock_client->getHostName());
+    DEBUG("server_port", sock_client->getPort());
+    INFO("register request sent");
 
     // receive a register response from the binder
     SEGMENT* res_reg_segment = NULL;
@@ -226,11 +244,13 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     FUNC_SIGNATURE func_signature(name, argTypes);
     map<FUNC_SIGNATURE, skeleton>::iterator it;
 
+    INFO("register response received");
+
     switch (res_reg_segment->type) {
 
         case REGISTER_SUCCESS:
             res_reg_success_message = dynamic_cast<RES_REG_SUCCESS_MESSAGE*>(res_reg_message);
-
+            INFO("register success");
             // store an entry for this function skeleton
             it = funcmap.find(func_signature);
             if (it == funcmap.end()) funcmap.insert(pair<FUNC_SIGNATURE, skeleton>(func_signature, f));
@@ -239,6 +259,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
             return res_reg_success_message->reasonCode;
 
         case REGISTER_FAILURE:
+            INFO("register failure");
             res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_reg_message);
             return res_failure_message->reasonCode;
 

@@ -69,6 +69,7 @@ bool FUNC_SIGNATURE::operator==(const FUNC_SIGNATURE &fs) const {
 }
 
 int connectTo(char *address, int port) {
+    INFO("in connectTo");
     int sock_fd;
     struct sockaddr_in sock_addr;
     struct hostent *host;
@@ -96,8 +97,8 @@ int connectTo(char *address, int port) {
 }
 
 int sendSegment(int sock_fd, SEGMENT *segment) {
-    char *buf = segment->encapsulate();
-    return send(sock_fd, buf, strlen(buf) + 1, 0);
+    segment->encapsulate();
+    return send(sock_fd, segment->getbuf(), segment->getlen(), 0);
 }
 
 int recvSegment(int sock_fd, SEGMENT *segment) {
@@ -113,18 +114,13 @@ int recvSegment(int sock_fd, SEGMENT *segment) {
     type = ctoi(intbuf);
 
     // receive the message
-    int msglen = length - SIZE_INT * 2;
-    char msg[msglen];
+    int msglen = length - SIZE_INT;
+    char *msg = new char[msglen];
     if (recv(sock_fd, msg, msglen, 0) <= 0) return RETURN_FAILURE;
 
     segment = SEGMENT::decapsulate(type, msg);
 
     return RETURN_SUCCESS;
-}
-
-void error(string msg) {
-    cerr << msg << endl;
-    exit(1);
 }
 
 void copy(char *buf, void *v, int len, int type) {

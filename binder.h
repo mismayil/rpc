@@ -15,6 +15,7 @@ struct LOCATION {
     char *hostname;
     uint32_t ipaddr;
     int port;
+
     LOCATION(char *hostname, int port): hostname(hostname), port(port) {
         ipaddr = htou(hostname);
     }

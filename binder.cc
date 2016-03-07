@@ -19,17 +19,20 @@ static map<FUNC_SIGNATURE, vector<LOCATION>> funcmap;
 BINDER_SOCK::BINDER_SOCK(int portnum): SOCK(portnum) {}
 
 int BINDER_SOCK::handle_request(int i) {
+    INFO("in BINDER_SOCK handle_request");
     int sock_fd = connections[i];
 
     // receive a request from either server or client
     SEGMENT *segment = NULL;
     if (recvSegment(sock_fd, segment) < 0) {
+        INFO("connection to be closed");
         // todo: remove a server with this sock_fd
         close(sock_fd);
         connections[i] = 0;
         return RETURN_SUCCESS;
     }
 
+    INFO("message received");
     FUNC_SIGNATURE func_signature = FUNC_SIGNATURE(NULL, NULL);
     LOCATION location = LOCATION(NULL, 0);
     map<FUNC_SIGNATURE, vector<LOCATION>>::iterator it;
@@ -47,7 +50,7 @@ int BINDER_SOCK::handle_request(int i) {
     switch (segment->type) {
 
         case REQUEST_REGISTER:
-
+            INFO("register request message");
             // handle register request
             req_reg_message = dynamic_cast<REQ_REG_MESSAGE*>(segment->message);
             func_signature = FUNC_SIGNATURE(req_reg_message->name, req_reg_message->argTypes);
@@ -81,7 +84,7 @@ int BINDER_SOCK::handle_request(int i) {
             break;
 
         case REQUEST_LOCATION:
-
+            INFO("location request message");
             // handle location request
             req_loc_message = dynamic_cast<REQ_LOC_MESSAGE*>(segment->message);
             func_signature = FUNC_SIGNATURE(req_loc_message->name, req_loc_message->argTypes);

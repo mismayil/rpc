@@ -9,19 +9,20 @@
 */
 
 // common definitions
-#define SIZE_CHAR         1
-#define SIZE_SHORT        2
-#define SIZE_INT          4
-#define SIZE_LONG         8
-#define SIZE_FLOAT        4
-#define SIZE_DOUBLE       8
-#define MAX_NAME_LENGTH   64
-#define ARG_TERMINATOR    0
-#define NULL_TERMINATOR   '\0'
-#define ARG_TYPE_SHIFT    16
-#define ARG_TYPE_MASK     0x00ff0000
-#define ARG_LEN_MASK      0x0000ffff
-#define ARG_IO_MASK       0xff000000
+#define SIZE_CHAR           1
+#define SIZE_SHORT          2
+#define SIZE_INT            4
+#define SIZE_LONG           8
+#define SIZE_FLOAT          4
+#define SIZE_DOUBLE         8
+#define MAX_FUNC_NAME_LEN   64
+#define MAX_SERVER_NAME_LEN 256
+#define ARG_TERMINATOR      0
+#define NULL_TERMINATOR     '\0'
+#define ARG_TYPE_SHIFT      16
+#define ARG_TYPE_MASK       0x00ff0000
+#define ARG_LEN_MASK        0x0000ffff
+#define ARG_IO_MASK         0xff000000
 
 // request types
 #define REQUEST_REGISTER  1
@@ -58,11 +59,15 @@
 // rpc general message
 class MESSAGE {
 protected:
+    int len;
     char *buf;
 public:
+    MESSAGE();
     virtual ~MESSAGE();
-    virtual char* marshall()=0;
+    virtual int marshall()=0;
     static MESSAGE* unmarshall(char *msg);
+    int getlen();
+    char *getbuf();
 };
 
 // register request message
@@ -74,7 +79,7 @@ public:
     int *argTypes;
     REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes);
     ~REQ_REG_MESSAGE();
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -83,7 +88,7 @@ class RES_REG_SUCCESS_MESSAGE: public MESSAGE {
 public:
     int reasonCode;
     RES_REG_SUCCESS_MESSAGE(int reasonCode);
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -94,7 +99,7 @@ public:
     int *argTypes;
     REQ_LOC_MESSAGE(char *name, int *argTypes);
     ~REQ_LOC_MESSAGE();
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -105,7 +110,7 @@ public:
     int port;
     RES_LOC_SUCCESS_MESSAGE(char *serverID, int port);
     ~RES_LOC_SUCCESS_MESSAGE();
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -117,7 +122,7 @@ public:
     void **args;
     REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args);
     ~REQ_EXEC_MESSAGE();
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -129,14 +134,14 @@ public:
     void **args;
     RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, void **args);
     ~RES_EXEC_SUCCESS_MESSAGE();
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
 // terminate message
 class REQ_TERM_MESSAGE: public MESSAGE {
 public:
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -145,12 +150,13 @@ class RES_FAILURE_MESSAGE: public MESSAGE {
 public:
     int reasonCode;
     RES_FAILURE_MESSAGE(int reasonCode);
-    char* marshall() override;
+    int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
 
 // tcp segment
 class SEGMENT {
+    int len;
     char *buf;
 public:
     int length;
@@ -158,8 +164,10 @@ public:
     MESSAGE *message;
     SEGMENT(int type, MESSAGE *message);
     ~SEGMENT();
-    char* encapsulate();
+    int encapsulate();
     static SEGMENT* decapsulate(int type, char *msg);
+    int getlen();
+    char *getbuf();
 };
 
 // server socket for connections with binder
@@ -177,9 +185,9 @@ public:
 };
 
 // marshalls argTypes and args
-char* marshallArgs(int *argTypes, void **args);
+int marshallArgs(int *argTypes, void **args, char **buf, int *buflen);
 
 // unmarshalls argTypes and args
-void unmarshallArgs(char *msg, int *argTypes, void **args);
+int unmarshallArgs(char *msg, int **argTypes, void ***args);
 
 #endif

@@ -9,8 +9,9 @@
 * Utility functions and definitions
 */
 
-// error printing function
-void error(std::string msg);
+// debug functions
+#define INFO(msg) do { cout << "[INFO] " << msg << endl; } while(0)
+#define DEBUG(msg, val)  do { cout << "[DEBUG] " << msg << "=" << val << endl; } while(0)
 
 // copies data to the buffer
 void copy(char *buf, void *v, int len=1, int type=ARG_CHAR);

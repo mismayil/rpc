@@ -12,10 +12,16 @@ SEGMENT::~SEGMENT() {
     if (buf) delete [] buf;
 }
 
-char* SEGMENT::encapsulate() {
-    char *msgbuf = message->marshall();
-    length = SIZE_INT * 2 + strlen(msgbuf) + 1;
-    buf = new char[length];
+int SEGMENT::encapsulate() {
+    INFO("in SEGMENT encapsulate");
+    message->marshall();
+    char *msgbuf = message->getbuf();
+    int msglen = message->getlen();
+    length = SIZE_INT + msglen + 1;
+    DEBUG("segment length", length);
+
+    len = length + SIZE_INT;
+    buf = new char[len];
     char *bufptr = buf;
 
     copy(bufptr, (void *) &length, 1, ARG_INT);
@@ -24,11 +30,11 @@ char* SEGMENT::encapsulate() {
     copy(bufptr, (void *) &type, 1, ARG_INT);
     bufptr += SIZE_INT;
 
-    copy(bufptr, (void *) msgbuf, strlen(msgbuf));
+    copy(bufptr, (void *) msgbuf, msglen);
 
-    buf[length-1] = NULL_TERMINATOR;
+    buf[len-1] = NULL_TERMINATOR;
 
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 SEGMENT* SEGMENT::decapsulate(int type, char *msg) {
@@ -72,11 +78,21 @@ SEGMENT* SEGMENT::decapsulate(int type, char *msg) {
     return segment;
 }
 
+int SEGMENT::getlen() { return len; }
+
+char* SEGMENT::getbuf() { return buf; }
+
 MESSAGE::~MESSAGE() {
     if (buf) delete [] buf;
 }
 
+MESSAGE::MESSAGE(): len(0), buf(NULL) {}
+
 MESSAGE* MESSAGE::unmarshall(char *msg) { return NULL; }
+
+int MESSAGE::getlen() { return len; }
+
+char* MESSAGE::getbuf() { return buf; }
 
 REQ_REG_MESSAGE::REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes) : serverID(serverID), port(port), name(name), argTypes(argTypes) {}
 
@@ -86,7 +102,8 @@ REQ_REG_MESSAGE::~REQ_REG_MESSAGE() {
     if (argTypes) delete [] argTypes;
 }
 
-char* REQ_REG_MESSAGE::marshall() {
+int REQ_REG_MESSAGE::marshall() {
+    INFO("in REQ_REG_MESSAGE marshall");
     int argc = 0;
 
     if (argTypes != NULL) {
@@ -95,15 +112,15 @@ char* REQ_REG_MESSAGE::marshall() {
         }
     }
 
-    int len = strlen(serverID) + 1 + SIZE_INT + strlen(name) + 1 + argc * SIZE_INT + 1;
+    DEBUG("argc", argc);
+
+    len = MAX_SERVER_NAME_LEN + SIZE_INT + MAX_FUNC_NAME_LEN + argc * SIZE_INT;
     buf = new char[len];
     char *bufptr = buf;
 
     // marshall serverID
     copy(bufptr, (void *) serverID, strlen(serverID));
-    bufptr += strlen(serverID);
-    *bufptr = NULL_TERMINATOR;
-    bufptr++;
+    bufptr += MAX_SERVER_NAME_LEN;
 
     // marshall port
     copy(bufptr, (void *) &port, 1, ARG_INT);
@@ -111,21 +128,16 @@ char* REQ_REG_MESSAGE::marshall() {
 
     // marshall name
     copy(bufptr, (void *) name, strlen(name));
-    bufptr += strlen(name);
-    *bufptr = NULL_TERMINATOR;
-    bufptr++;
+    bufptr += MAX_FUNC_NAME_LEN;
 
     // marshall argTypes
     copy(bufptr, (void *) argTypes, argc, ARG_INT);
 
-    buf[len-1] = NULL_TERMINATOR;
-
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* REQ_REG_MESSAGE::unmarshall(char *msg) {
     char *msgptr = msg;
-    int len = 0;
     char intbuf[SIZE_INT];
     char *serverID;
     int port, argType;
@@ -134,14 +146,9 @@ MESSAGE* REQ_REG_MESSAGE::unmarshall(char *msg) {
     vector<int> types;
 
     // unmarshall server identifier
-    while (*(msgptr + len) != NULL_TERMINATOR) {
-        len++;
-    }
-
-    serverID = new char[len];
-    copy(serverID, (void *) msgptr, len);
-    serverID[len-1] = NULL_TERMINATOR;
-    msgptr += len;
+    serverID = new char[MAX_SERVER_NAME_LEN];
+    copy(serverID, (void *) msgptr, MAX_SERVER_NAME_LEN);
+    msgptr += MAX_SERVER_NAME_LEN;
 
     // unmarshall port
     copy(intbuf, (void *) msgptr, SIZE_INT);
@@ -149,15 +156,9 @@ MESSAGE* REQ_REG_MESSAGE::unmarshall(char *msg) {
     msgptr += SIZE_INT;
 
     // unmarshall name
-    len = 0;
-    while (*(msgptr + len) != NULL_TERMINATOR) {
-        len++;
-    }
-
-    name = new char[len];
-    copy(name, (void *) msgptr, len);
-    name[len-1] = NULL_TERMINATOR;
-    msgptr += len;
+    name = new char[MAX_FUNC_NAME_LEN];
+    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types
     while (1) {
@@ -181,11 +182,12 @@ MESSAGE* REQ_REG_MESSAGE::unmarshall(char *msg) {
 
 RES_REG_SUCCESS_MESSAGE::RES_REG_SUCCESS_MESSAGE(int reasonCode) : reasonCode(reasonCode) {}
 
-char* RES_REG_SUCCESS_MESSAGE::marshall() {
+int RES_REG_SUCCESS_MESSAGE::marshall() {
     // marshall reasonCode
-    buf = new char[SIZE_INT];
+    len = SIZE_INT;
+    buf = new char[len];
     copy(buf, (void *) &reasonCode, 1, ARG_INT);
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* RES_REG_SUCCESS_MESSAGE::unmarshall(char *msg) {
@@ -203,7 +205,7 @@ REQ_LOC_MESSAGE::~REQ_LOC_MESSAGE() {
     if (argTypes) delete [] argTypes;
 }
 
-char* REQ_LOC_MESSAGE::marshall() {
+int REQ_LOC_MESSAGE::marshall() {
     int argc = 0;
 
     if (argTypes != NULL) {
@@ -212,27 +214,22 @@ char* REQ_LOC_MESSAGE::marshall() {
         }
     }
 
-    int len = strlen(name) + 1 + argc * SIZE_INT + 1;
+    len = MAX_FUNC_NAME_LEN + argc * SIZE_INT;
     buf = new char[len];
     char *bufptr = buf;
 
     // marshall name
     copy(bufptr, (void *) name, strlen(name));
-    bufptr += strlen(name);
-    *bufptr = NULL_TERMINATOR;
-    bufptr++;
+    bufptr += MAX_FUNC_NAME_LEN;
 
     // marshall argTypes
     copy(bufptr, (void *) argTypes, argc, ARG_INT);
 
-    buf[len-1] = NULL_TERMINATOR;
-
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* REQ_LOC_MESSAGE::unmarshall(char *msg) {
     char *msgptr = msg;
-    int len = 0;
     char intbuf[SIZE_INT];
     int argType;
     char *name;
@@ -240,14 +237,9 @@ MESSAGE* REQ_LOC_MESSAGE::unmarshall(char *msg) {
     vector<int> types;
 
     // unmarshall name
-    while (*(msgptr + len) != NULL_TERMINATOR) {
-        len++;
-    }
-
-    name = new char[len];
-    copy(name, (void *) msgptr, len);
-    name[len-1] = NULL_TERMINATOR;
-    msgptr += len;
+    name = new char[MAX_FUNC_NAME_LEN];
+    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types
     while (1) {
@@ -275,41 +267,31 @@ RES_LOC_SUCCESS_MESSAGE::~RES_LOC_SUCCESS_MESSAGE() {
     if (serverID) delete [] serverID;
 }
 
-char* RES_LOC_SUCCESS_MESSAGE::marshall() {
-    int len = strlen(serverID) + 1 + SIZE_INT + 1;
+int RES_LOC_SUCCESS_MESSAGE::marshall() {
+    len = MAX_SERVER_NAME_LEN + SIZE_INT;
     buf = new char[len];
     char *bufptr = buf;
 
     // marshall serverID
     copy(bufptr, (void *) serverID, strlen(serverID));
-    bufptr += strlen(serverID);
-    *bufptr = NULL_TERMINATOR;
-    bufptr++;
+    bufptr += MAX_SERVER_NAME_LEN;
 
     // marshall port
     copy(bufptr, (void *) &port, 1, ARG_INT);
 
-    buf[len-1] = NULL_TERMINATOR;
-
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* RES_LOC_SUCCESS_MESSAGE::unmarshall(char *msg) {
     char *msgptr = msg;
-    int len = 0;
     char intbuf[SIZE_INT];
     char *serverID;
     int port;
 
     // unmarshall server identifier
-    while (*(msgptr + len) != NULL_TERMINATOR) {
-        len++;
-    }
-
-    serverID = new char[len];
-    copy(serverID, (void *) msgptr, len);
-    serverID[len-1] = NULL_TERMINATOR;
-    msgptr += len;
+    serverID = new char[MAX_SERVER_NAME_LEN];
+    copy(serverID, (void *) msgptr, MAX_SERVER_NAME_LEN);
+    msgptr += MAX_SERVER_NAME_LEN;
 
     // unmarshall port
     copy(intbuf, (void *) msgptr, SIZE_INT);
@@ -328,58 +310,48 @@ REQ_EXEC_MESSAGE::~REQ_EXEC_MESSAGE() {
     // delete args, how?
 }
 
-char* REQ_EXEC_MESSAGE::marshall() {
-    int len = strlen(name) + 1;
-
+int REQ_EXEC_MESSAGE::marshall() {
     // marshall argTypes and args
-    char *argbuf = marshallArgs(argTypes, args);
+    int argbuflen = 0;
+    char *argbuf = NULL;
+    marshallArgs(argTypes, args, &argbuf, &argbuflen);
 
-    len += strlen(argbuf) + 1;
+    len = MAX_FUNC_NAME_LEN + argbuflen;
     buf = new char[len];
     char *bufptr = buf;
 
     // marshall name
     copy(bufptr, (void *) name, strlen(name));
-    bufptr += strlen(name);
-    *bufptr = NULL_TERMINATOR;
-    bufptr++;
+    bufptr += MAX_FUNC_NAME_LEN;
 
-    copy(bufptr, (void *) argbuf, strlen(argbuf));
+    copy(bufptr, (void *) argbuf, argbuflen);
 
-    buf[len-1] = NULL_TERMINATOR;
-
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* REQ_EXEC_MESSAGE::unmarshall(char *msg) {
     char *msgptr = msg;
-    int len = 0;
     char *name;
     int *argTypes = NULL;
     void **args = NULL;
 
     // unmarshall name
-    while (*(msgptr + len) != NULL_TERMINATOR) {
-        len++;
-    }
-
-    name = new char[len];
-    copy(name, (void *) msgptr, len);
-    name[len-1] = NULL_TERMINATOR;
-    msgptr += len;
+    name = new char[MAX_FUNC_NAME_LEN];
+    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types and args
-    unmarshallArgs(msgptr, argTypes, args);
+    unmarshallArgs(msgptr, &argTypes, &args);
 
     MESSAGE* message = new REQ_EXEC_MESSAGE(name, argTypes, args);
 
     return message;
 }
 
-char* REQ_TERM_MESSAGE::marshall() {
-    buf = new char[1];
-    buf[0] = NULL_TERMINATOR;
-    return buf;
+int REQ_TERM_MESSAGE::marshall() {
+    len = 0;
+    buf = new char[len];
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* REQ_TERM_MESSAGE::unmarshall(char *msg) {
@@ -394,48 +366,38 @@ RES_EXEC_SUCCESS_MESSAGE::~RES_EXEC_SUCCESS_MESSAGE() {
     // delete args, how?
 }
 
-char* RES_EXEC_SUCCESS_MESSAGE::marshall() {
-    int len = strlen(name) + 1;
-
+int RES_EXEC_SUCCESS_MESSAGE::marshall() {
     // marshall argTypes and args
-    char *argbuf = marshallArgs(argTypes, args);
+    int argbuflen = 0;
+    char *argbuf = NULL;
+    marshallArgs(argTypes, args, &argbuf, &argbuflen);
 
-    len += strlen(argbuf) + 1;
+    len = MAX_FUNC_NAME_LEN + argbuflen;
     buf = new char[len];
     char *bufptr = buf;
 
     // marshall name
     copy(bufptr, (void *) name, strlen(name));
-    bufptr += strlen(name);
-    *bufptr = NULL_TERMINATOR;
-    bufptr++;
+    bufptr += MAX_FUNC_NAME_LEN;
 
-    copy(bufptr, (void *) argbuf, strlen(argbuf));
+    copy(bufptr, (void *) argbuf, argbuflen);
 
-    buf[len-1] = NULL_TERMINATOR;
-
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* RES_EXEC_SUCCESS_MESSAGE::unmarshall(char *msg) {
     char *msgptr = msg;
-    int len = 0;
     char *name;
     int *argTypes = NULL;
     void **args = NULL;
 
     // unmarshall name
-    while (*(msgptr + len) != NULL_TERMINATOR) {
-        len++;
-    }
-
-    name = new char[len];
-    copy(name, (void *) msgptr, len);
-    name[len-1] = NULL_TERMINATOR;
-    msgptr += len;
+    name = new char[MAX_FUNC_NAME_LEN];
+    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types and args
-    unmarshallArgs(msgptr, argTypes, args);
+    unmarshallArgs(msgptr, &argTypes, &args);
 
     MESSAGE* message = new RES_EXEC_SUCCESS_MESSAGE(name, argTypes, args);
 
@@ -444,11 +406,12 @@ MESSAGE* RES_EXEC_SUCCESS_MESSAGE::unmarshall(char *msg) {
 
 RES_FAILURE_MESSAGE::RES_FAILURE_MESSAGE(int reasonCode) : reasonCode(reasonCode) {}
 
-char* RES_FAILURE_MESSAGE::marshall() {
+int RES_FAILURE_MESSAGE::marshall() {
     // marshall reasonCode
-    buf = new char[SIZE_INT];
+    len = SIZE_INT;
+    buf = new char[len];
     copy(buf, (void *) &reasonCode, 1, ARG_INT);
-    return buf;
+    return RETURN_SUCCESS;
 }
 
 MESSAGE* RES_FAILURE_MESSAGE::unmarshall(char *msg) {
@@ -459,9 +422,8 @@ MESSAGE* RES_FAILURE_MESSAGE::unmarshall(char *msg) {
     return message;
 }
 
-char* marshallArgs(int *argTypes, void **args) {
+int marshallArgs(int *argTypes, void **args, char **buf, int *buflen) {
     int arglen, type, argType, argc = 0;
-    char *buf;
 
     if (argTypes != NULL) {
         while (argTypes[argc] != ARG_TERMINATOR) {
@@ -499,8 +461,9 @@ char* marshallArgs(int *argTypes, void **args) {
         }
     }
 
-    buf = new char[len+1];
-    char *bufptr = buf;
+    *buf = new char[len];
+    char *bufptr = *buf;
+
     copy(bufptr, (void *) argTypes, argc, ARG_INT);
     bufptr += argc * SIZE_INT;
 
@@ -538,12 +501,10 @@ char* marshallArgs(int *argTypes, void **args) {
         }
     }
 
-    buf[len-1] = NULL_TERMINATOR;
-
-    return buf;
+    return RETURN_SUCCESS;
 }
 
-void unmarshallArgs(char *msg, int *argTypes, void **args) {
+int unmarshallArgs(char *msg, int **argTypes, void ***args) {
     char *msgptr = msg;
     char intbuf[SIZE_INT], shortbuf[SIZE_SHORT], longbuf[SIZE_LONG];
     char floatbuf[SIZE_FLOAT], doublebuf[SIZE_DOUBLE];
@@ -559,18 +520,18 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
         if (argType == ARG_TERMINATOR) break;
     }
 
-    argTypes = new int[types.size()];
+    *argTypes = new int[types.size()];
 
     for (unsigned int i = 0; i < types.size(); i++) {
-        argTypes[i] = types[i];
+        *argTypes[i] = types[i];
     }
 
     // unmarshall args
     char *carg; short *sarg; int *iarg; long *larg; float *farg; double *darg;
-    args = new void*[types.size()-1];
+    *args = new void*[types.size()-1];
 
     for (unsigned int i = 0; i < types.size()-1; i++) {
-        argType = argTypes[i];
+        argType = *argTypes[i];
         type = (argType & ARG_TYPE_MASK) >> ARG_TYPE_SHIFT;
         arglen = argType & ARG_LEN_MASK;
         arglen = arglen > 0 ? arglen : 1;
@@ -582,7 +543,7 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
                     carg[j] = *msgptr;
                     msgptr += SIZE_CHAR;
                 }
-                args[i] = (void *) carg;
+                *args[i] = (void *) carg;
                 break;
             case ARG_SHORT:
                 sarg = new short[arglen];
@@ -591,7 +552,7 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
                     sarg[j] = ctos(shortbuf);
                     msgptr += SIZE_SHORT;
                 }
-                args[i] = (void *) sarg;
+                *args[i] = (void *) sarg;
                 break;
             case ARG_INT:
                 iarg = new int[arglen];
@@ -600,7 +561,7 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
                     iarg[j] = ctos(intbuf);
                     msgptr += SIZE_INT;
                 }
-                args[i] = (void *) iarg;
+                *args[i] = (void *) iarg;
                 break;
             case ARG_LONG:
                 larg = new long[arglen];
@@ -609,7 +570,7 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
                     larg[j] = ctos(longbuf);
                     msgptr += SIZE_LONG;
                 }
-                args[i] = (void *) larg;
+                *args[i] = (void *) larg;
                 break;
             case ARG_FLOAT:
                 farg = new float[arglen];
@@ -618,7 +579,7 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
                     farg[j] = ctos(floatbuf);
                     msgptr += SIZE_FLOAT;
                 }
-                args[i] = (void *) farg;
+                *args[i] = (void *) farg;
                 break;
             case ARG_DOUBLE:
                 darg = new double[arglen];
@@ -627,8 +588,10 @@ void unmarshallArgs(char *msg, int *argTypes, void **args) {
                     darg[j] = ctos(doublebuf);
                     msgptr += SIZE_DOUBLE;
                 }
-                args[i] = (void *) darg;
+                *args[i] = (void *) darg;
                 break;
         }
     }
+
+    return RETURN_SUCCESS;
 }
