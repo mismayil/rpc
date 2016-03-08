@@ -24,7 +24,7 @@ int BINDER_SOCK::handle_request(int i) {
 
     // receive a request from either server or client
     SEGMENT *segment = NULL;
-    if (recvSegment(sock_fd, segment) < 0) {
+    if (recvSegment(sock_fd, &segment) < 0) {
         INFO("connection to be closed");
         // todo: remove a server with this sock_fd
         close(sock_fd);
@@ -33,6 +33,7 @@ int BINDER_SOCK::handle_request(int i) {
     }
 
     INFO("message received");
+
     FUNC_SIGNATURE func_signature = FUNC_SIGNATURE(NULL, NULL);
     LOCATION location = LOCATION(NULL, 0);
     map<FUNC_SIGNATURE, vector<LOCATION>>::iterator it;
@@ -73,8 +74,6 @@ int BINDER_SOCK::handle_request(int i) {
                     }
                 }
             }
-
-            locations.push_back(location);
 
             // send a register success response
             res_reg_success_message = new RES_REG_SUCCESS_MESSAGE(RETURN_SUCCESS);

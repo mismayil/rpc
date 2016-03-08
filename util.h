@@ -13,9 +13,6 @@
 #define INFO(msg) do { cout << "[INFO] " << msg << endl; } while(0)
 #define DEBUG(msg, val)  do { cout << "[DEBUG] " << msg << "=" << val << endl; } while(0)
 
-// copies data to the buffer
-void copy(char *buf, void *v, int len=1, int type=ARG_CHAR);
-
 // connects to the host with given address and port
 int connectTo(char *address, int port);
 
@@ -23,12 +20,11 @@ int connectTo(char *address, int port);
 int sendSegment(int sock_fd, SEGMENT *segment);
 
 // receives a tcp segment
-int recvSegment(int sock_fd, SEGMENT *segment);
+int recvSegment(int sock_fd, SEGMENT **segment);
 
 struct FUNC_SIGNATURE {
     char *name;
-    std::vector<int> iargTypes; // input arg types
-    std::vector<int> oargTypes; // output arg types
+    int *argTypes;
     int argc;
 
     FUNC_SIGNATURE(char *name, int *argTypes);
@@ -45,6 +41,8 @@ int ctoi(char *str);
 long ctol(char *str);
 float ctof(char *str);
 double ctod(char *str);
+
+// hostname to uint32_t ip address
 uint32_t htou(char *hostname);
 
 #endif

@@ -6,7 +6,7 @@
 
 using namespace std;
 
-SEGMENT::SEGMENT(int type, MESSAGE *message) : type(type), message(message) {}
+SEGMENT::SEGMENT(int type, MESSAGE *message) : length(0), type(type), message(message) {}
 
 SEGMENT::~SEGMENT() {
     if (buf) delete [] buf;
@@ -22,15 +22,16 @@ int SEGMENT::encapsulate() {
 
     len = length + SIZE_INT;
     buf = new char[len];
+    memset(buf, 0, len);
     char *bufptr = buf;
 
-    copy(bufptr, (void *) &length, 1, ARG_INT);
+    memcpy(bufptr, &length, SIZE_INT);
     bufptr += SIZE_INT;
 
-    copy(bufptr, (void *) &type, 1, ARG_INT);
+    memcpy(bufptr, &type, SIZE_INT);
     bufptr += SIZE_INT;
 
-    copy(bufptr, (void *) msgbuf, msglen);
+    memcpy(bufptr, msgbuf, msglen);
 
     buf[len-1] = NULL_TERMINATOR;
 
@@ -104,34 +105,33 @@ REQ_REG_MESSAGE::~REQ_REG_MESSAGE() {
 
 int REQ_REG_MESSAGE::marshall() {
     INFO("in REQ_REG_MESSAGE marshall");
-    int argc = 0;
+    int argc = 1;
 
-    if (argTypes != NULL) {
-        while (argTypes[argc] != ARG_TERMINATOR) {
-            argc++;
-        }
+    while (argTypes[argc-1] != ARG_TERMINATOR) {
+        argc++;
     }
 
     DEBUG("argc", argc);
 
     len = MAX_SERVER_NAME_LEN + SIZE_INT + MAX_FUNC_NAME_LEN + argc * SIZE_INT;
     buf = new char[len];
+    memset(buf, 0, len);
     char *bufptr = buf;
 
     // marshall serverID
-    copy(bufptr, (void *) serverID, strlen(serverID));
+    memcpy(bufptr, serverID, strlen(serverID));
     bufptr += MAX_SERVER_NAME_LEN;
 
     // marshall port
-    copy(bufptr, (void *) &port, 1, ARG_INT);
+    memcpy(bufptr, &port, SIZE_INT);
     bufptr += SIZE_INT;
 
     // marshall name
-    copy(bufptr, (void *) name, strlen(name));
+    memcpy(bufptr, name, strlen(name));
     bufptr += MAX_FUNC_NAME_LEN;
 
     // marshall argTypes
-    copy(bufptr, (void *) argTypes, argc, ARG_INT);
+    memcpy(bufptr, argTypes, argc * SIZE_INT);
 
     return RETURN_SUCCESS;
 }
@@ -147,22 +147,22 @@ MESSAGE* REQ_REG_MESSAGE::unmarshall(char *msg) {
 
     // unmarshall server identifier
     serverID = new char[MAX_SERVER_NAME_LEN];
-    copy(serverID, (void *) msgptr, MAX_SERVER_NAME_LEN);
+    memcpy(serverID, msgptr, MAX_SERVER_NAME_LEN);
     msgptr += MAX_SERVER_NAME_LEN;
 
     // unmarshall port
-    copy(intbuf, (void *) msgptr, SIZE_INT);
+    memcpy(intbuf, msgptr, SIZE_INT);
     port = ctoi(intbuf);
     msgptr += SIZE_INT;
 
     // unmarshall name
     name = new char[MAX_FUNC_NAME_LEN];
-    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    memcpy(name, msgptr, MAX_FUNC_NAME_LEN);
     msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types
     while (1) {
-        copy(intbuf, (void *) msgptr, SIZE_INT);
+        memcpy(intbuf, msgptr, SIZE_INT);
         msgptr += SIZE_INT;
         argType = ctoi(intbuf);
         types.push_back(argType);
@@ -186,7 +186,8 @@ int RES_REG_SUCCESS_MESSAGE::marshall() {
     // marshall reasonCode
     len = SIZE_INT;
     buf = new char[len];
-    copy(buf, (void *) &reasonCode, 1, ARG_INT);
+    memset(buf, 0, len);
+    memcpy(buf, &reasonCode, SIZE_INT);
     return RETURN_SUCCESS;
 }
 
@@ -206,24 +207,23 @@ REQ_LOC_MESSAGE::~REQ_LOC_MESSAGE() {
 }
 
 int REQ_LOC_MESSAGE::marshall() {
-    int argc = 0;
+    int argc = 1;
 
-    if (argTypes != NULL) {
-        while (argTypes[argc] != ARG_TERMINATOR) {
-            argc++;
-        }
+    while (argTypes[argc-1] != ARG_TERMINATOR) {
+        argc++;
     }
 
     len = MAX_FUNC_NAME_LEN + argc * SIZE_INT;
     buf = new char[len];
+    memset(buf, 0, len);
     char *bufptr = buf;
 
     // marshall name
-    copy(bufptr, (void *) name, strlen(name));
+    memcpy(bufptr, name, strlen(name));
     bufptr += MAX_FUNC_NAME_LEN;
 
     // marshall argTypes
-    copy(bufptr, (void *) argTypes, argc, ARG_INT);
+    memcpy(bufptr, argTypes, argc * SIZE_INT);
 
     return RETURN_SUCCESS;
 }
@@ -238,12 +238,12 @@ MESSAGE* REQ_LOC_MESSAGE::unmarshall(char *msg) {
 
     // unmarshall name
     name = new char[MAX_FUNC_NAME_LEN];
-    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    memcpy(name, msgptr, MAX_FUNC_NAME_LEN);
     msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types
     while (1) {
-        copy(intbuf, (void *) msgptr, SIZE_INT);
+        memcpy(intbuf, msgptr, SIZE_INT);
         msgptr += SIZE_INT;
         argType = ctoi(intbuf);
         types.push_back(argType);
@@ -270,14 +270,15 @@ RES_LOC_SUCCESS_MESSAGE::~RES_LOC_SUCCESS_MESSAGE() {
 int RES_LOC_SUCCESS_MESSAGE::marshall() {
     len = MAX_SERVER_NAME_LEN + SIZE_INT;
     buf = new char[len];
+    memset(buf, 0, len);
     char *bufptr = buf;
 
     // marshall serverID
-    copy(bufptr, (void *) serverID, strlen(serverID));
+    memcpy(bufptr, serverID, strlen(serverID));
     bufptr += MAX_SERVER_NAME_LEN;
 
     // marshall port
-    copy(bufptr, (void *) &port, 1, ARG_INT);
+    memcpy(bufptr, &port, SIZE_INT);
 
     return RETURN_SUCCESS;
 }
@@ -290,11 +291,11 @@ MESSAGE* RES_LOC_SUCCESS_MESSAGE::unmarshall(char *msg) {
 
     // unmarshall server identifier
     serverID = new char[MAX_SERVER_NAME_LEN];
-    copy(serverID, (void *) msgptr, MAX_SERVER_NAME_LEN);
+    memcpy(serverID, msgptr, MAX_SERVER_NAME_LEN);
     msgptr += MAX_SERVER_NAME_LEN;
 
     // unmarshall port
-    copy(intbuf, (void *) msgptr, SIZE_INT);
+    memcpy(intbuf, msgptr, SIZE_INT);
     port = ctoi(intbuf);
 
     MESSAGE* message = new RES_LOC_SUCCESS_MESSAGE(serverID, port);
@@ -318,13 +319,14 @@ int REQ_EXEC_MESSAGE::marshall() {
 
     len = MAX_FUNC_NAME_LEN + argbuflen;
     buf = new char[len];
+    memset(buf, 0, len);
     char *bufptr = buf;
 
     // marshall name
-    copy(bufptr, (void *) name, strlen(name));
+    memcpy(bufptr, name, strlen(name));
     bufptr += MAX_FUNC_NAME_LEN;
 
-    copy(bufptr, (void *) argbuf, argbuflen);
+    memcpy(bufptr, argbuf, argbuflen);
 
     return RETURN_SUCCESS;
 }
@@ -337,7 +339,7 @@ MESSAGE* REQ_EXEC_MESSAGE::unmarshall(char *msg) {
 
     // unmarshall name
     name = new char[MAX_FUNC_NAME_LEN];
-    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    memcpy(name, msgptr, MAX_FUNC_NAME_LEN);
     msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types and args
@@ -351,6 +353,7 @@ MESSAGE* REQ_EXEC_MESSAGE::unmarshall(char *msg) {
 int REQ_TERM_MESSAGE::marshall() {
     len = 0;
     buf = new char[len];
+    memset(buf, 0, len);
     return RETURN_SUCCESS;
 }
 
@@ -374,13 +377,14 @@ int RES_EXEC_SUCCESS_MESSAGE::marshall() {
 
     len = MAX_FUNC_NAME_LEN + argbuflen;
     buf = new char[len];
+    memset(buf, 0, len);
     char *bufptr = buf;
 
     // marshall name
-    copy(bufptr, (void *) name, strlen(name));
+    memcpy(bufptr, name, strlen(name));
     bufptr += MAX_FUNC_NAME_LEN;
 
-    copy(bufptr, (void *) argbuf, argbuflen);
+    memcpy(bufptr, argbuf, argbuflen);
 
     return RETURN_SUCCESS;
 }
@@ -393,7 +397,7 @@ MESSAGE* RES_EXEC_SUCCESS_MESSAGE::unmarshall(char *msg) {
 
     // unmarshall name
     name = new char[MAX_FUNC_NAME_LEN];
-    copy(name, (void *) msgptr, MAX_FUNC_NAME_LEN);
+    memcpy(name, msgptr, MAX_FUNC_NAME_LEN);
     msgptr += MAX_FUNC_NAME_LEN;
 
     // unmarshall arg types and args
@@ -410,7 +414,9 @@ int RES_FAILURE_MESSAGE::marshall() {
     // marshall reasonCode
     len = SIZE_INT;
     buf = new char[len];
-    copy(buf, (void *) &reasonCode, 1, ARG_INT);
+    memset(buf, 0, len);
+
+    memcpy(buf, &reasonCode, SIZE_INT);
     return RETURN_SUCCESS;
 }
 
@@ -423,13 +429,13 @@ MESSAGE* RES_FAILURE_MESSAGE::unmarshall(char *msg) {
 }
 
 int marshallArgs(int *argTypes, void **args, char **buf, int *buflen) {
-    int arglen, type, argType, argc = 0;
+    int arglen, type, argType, argc = 1;
 
-    if (argTypes != NULL) {
-        while (argTypes[argc] != ARG_TERMINATOR) {
-            argc++;
-        }
+    while (argTypes[argc-1] != ARG_TERMINATOR) {
+        argc++;
     }
+
+    argc++;
 
     int len = argc * SIZE_INT;
 
@@ -462,9 +468,10 @@ int marshallArgs(int *argTypes, void **args, char **buf, int *buflen) {
     }
 
     *buf = new char[len];
+    memset(*buf, 0, len);
     char *bufptr = *buf;
 
-    copy(bufptr, (void *) argTypes, argc, ARG_INT);
+    memcpy(bufptr, argTypes, argc * ARG_INT);
     bufptr += argc * SIZE_INT;
 
     for (int i = 0; i < argc - 1; i++) {
@@ -475,27 +482,27 @@ int marshallArgs(int *argTypes, void **args, char **buf, int *buflen) {
 
         switch (type) {
             case ARG_CHAR:
-                copy(bufptr, (void *) args[i], arglen, ARG_CHAR);
+                memcpy(bufptr, args[i], arglen * SIZE_CHAR);
                 bufptr += arglen * SIZE_CHAR;
                 break;
             case ARG_SHORT:
-                copy(bufptr, (void *) args[i], arglen, ARG_SHORT);
+                memcpy(bufptr, args[i], arglen * SIZE_SHORT);
                 bufptr += arglen * SIZE_SHORT;
                 break;
             case ARG_INT:
-                copy(bufptr, (void *) args[i], arglen, ARG_INT);
+                memcpy(bufptr, args[i], arglen * SIZE_INT);
                 bufptr += arglen * SIZE_INT;
                 break;
             case ARG_LONG:
-                copy(bufptr, (void *) args[i], arglen, ARG_LONG);
+                memcpy(bufptr, args[i], arglen * SIZE_LONG);
                 bufptr += arglen * SIZE_LONG;
                 break;
             case ARG_FLOAT:
-                copy(bufptr, (void *) args[i], arglen, ARG_FLOAT);
+                memcpy(bufptr, args[i], arglen * SIZE_FLOAT);
                 bufptr += arglen * SIZE_FLOAT;
                 break;
             case ARG_DOUBLE:
-                copy(bufptr, (void *) args[i], arglen, ARG_DOUBLE);
+                memcpy(bufptr, args[i], arglen * SIZE_DOUBLE);
                 bufptr += arglen * SIZE_DOUBLE;
                 break;
         }
@@ -513,7 +520,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
 
     // unmarshall argTypes
     while (1) {
-        copy(intbuf, (void *) msgptr, SIZE_INT);
+        memcpy(intbuf, msgptr, SIZE_INT);
         msgptr += SIZE_INT;
         argType = ctoi(intbuf);
         types.push_back(argType);
@@ -548,7 +555,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
             case ARG_SHORT:
                 sarg = new short[arglen];
                 for (int j = 0; j < arglen; j++) {
-                    copy(shortbuf, (void *) msgptr, SIZE_SHORT);
+                    memcpy(shortbuf, msgptr, SIZE_SHORT);
                     sarg[j] = ctos(shortbuf);
                     msgptr += SIZE_SHORT;
                 }
@@ -557,7 +564,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
             case ARG_INT:
                 iarg = new int[arglen];
                 for (int j = 0; j < arglen; j++) {
-                    copy(intbuf, (void *) msgptr, SIZE_INT);
+                    memcpy(intbuf, msgptr, SIZE_INT);
                     iarg[j] = ctos(intbuf);
                     msgptr += SIZE_INT;
                 }
@@ -566,7 +573,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
             case ARG_LONG:
                 larg = new long[arglen];
                 for (int j = 0; j < arglen; j++) {
-                    copy(longbuf, (void *) msgptr, SIZE_LONG);
+                    memcpy(longbuf, msgptr, SIZE_LONG);
                     larg[j] = ctos(longbuf);
                     msgptr += SIZE_LONG;
                 }
@@ -575,7 +582,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
             case ARG_FLOAT:
                 farg = new float[arglen];
                 for (int j = 0; j < arglen; j++) {
-                    copy(floatbuf, (void *) msgptr, SIZE_FLOAT);
+                    memcpy(floatbuf, msgptr, SIZE_FLOAT);
                     farg[j] = ctos(floatbuf);
                     msgptr += SIZE_FLOAT;
                 }
@@ -584,7 +591,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
             case ARG_DOUBLE:
                 darg = new double[arglen];
                 for (int j = 0; j < arglen; j++) {
-                    copy(doublebuf, (void *) msgptr, SIZE_DOUBLE);
+                    memcpy(doublebuf, msgptr, SIZE_DOUBLE);
                     darg[j] = ctos(doublebuf);
                     msgptr += SIZE_DOUBLE;
                 }
