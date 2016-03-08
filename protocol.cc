@@ -435,8 +435,6 @@ int marshallArgs(int *argTypes, void **args, char **buf, int *buflen) {
         argc++;
     }
 
-    argc++;
-
     int len = argc * SIZE_INT;
 
     for (int i = 0; i < argc - 1; i++) {
@@ -468,10 +466,11 @@ int marshallArgs(int *argTypes, void **args, char **buf, int *buflen) {
     }
 
     *buf = new char[len];
+    *buflen = len;
     memset(*buf, 0, len);
     char *bufptr = *buf;
 
-    memcpy(bufptr, argTypes, argc * ARG_INT);
+    memcpy(bufptr, argTypes, argc * SIZE_INT);
     bufptr += argc * SIZE_INT;
 
     for (int i = 0; i < argc - 1; i++) {
@@ -530,7 +529,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
     *argTypes = new int[types.size()];
 
     for (unsigned int i = 0; i < types.size(); i++) {
-        *argTypes[i] = types[i];
+        (*argTypes)[i] = types[i];
     }
 
     // unmarshall args
@@ -538,7 +537,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
     *args = new void*[types.size()-1];
 
     for (unsigned int i = 0; i < types.size()-1; i++) {
-        argType = *argTypes[i];
+        argType = (*argTypes)[i];
         type = (argType & ARG_TYPE_MASK) >> ARG_TYPE_SHIFT;
         arglen = argType & ARG_LEN_MASK;
         arglen = arglen > 0 ? arglen : 1;
@@ -550,7 +549,7 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
                     carg[j] = *msgptr;
                     msgptr += SIZE_CHAR;
                 }
-                *args[i] = (void *) carg;
+                (*args)[i] = carg;
                 break;
             case ARG_SHORT:
                 sarg = new short[arglen];
@@ -559,43 +558,43 @@ int unmarshallArgs(char *msg, int **argTypes, void ***args) {
                     sarg[j] = ctos(shortbuf);
                     msgptr += SIZE_SHORT;
                 }
-                *args[i] = (void *) sarg;
+                (*args)[i] = sarg;
                 break;
             case ARG_INT:
                 iarg = new int[arglen];
                 for (int j = 0; j < arglen; j++) {
                     memcpy(intbuf, msgptr, SIZE_INT);
-                    iarg[j] = ctos(intbuf);
+                    iarg[j] = ctoi(intbuf);
                     msgptr += SIZE_INT;
                 }
-                *args[i] = (void *) iarg;
+                (*args)[i] = iarg;
                 break;
             case ARG_LONG:
                 larg = new long[arglen];
                 for (int j = 0; j < arglen; j++) {
                     memcpy(longbuf, msgptr, SIZE_LONG);
-                    larg[j] = ctos(longbuf);
+                    larg[j] = ctol(longbuf);
                     msgptr += SIZE_LONG;
                 }
-                *args[i] = (void *) larg;
+                (*args)[i] = larg;
                 break;
             case ARG_FLOAT:
                 farg = new float[arglen];
                 for (int j = 0; j < arglen; j++) {
                     memcpy(floatbuf, msgptr, SIZE_FLOAT);
-                    farg[j] = ctos(floatbuf);
+                    farg[j] = ctof(floatbuf);
                     msgptr += SIZE_FLOAT;
                 }
-                *args[i] = (void *) farg;
+                (*args)[i] = farg;
                 break;
             case ARG_DOUBLE:
                 darg = new double[arglen];
                 for (int j = 0; j < arglen; j++) {
                     memcpy(doublebuf, msgptr, SIZE_DOUBLE);
-                    darg[j] = ctos(doublebuf);
+                    darg[j] = ctod(doublebuf);
                     msgptr += SIZE_DOUBLE;
                 }
-                *args[i] = (void *) darg;
+                (*args)[i] = darg;
                 break;
         }
     }

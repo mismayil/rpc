@@ -189,16 +189,23 @@ int rpcCall(char* name, int* argTypes, void** args) {
     recvSegment(server_sock_fd, &res_exec_segment);
     MESSAGE *res_exec_message = res_exec_segment->message;
     RES_EXEC_SUCCESS_MESSAGE *res_exec_success_message;
+    int argc = 1;
 
     switch (res_exec_segment->type) {
         case EXECUTE_SUCCESS:
             res_exec_success_message = dynamic_cast<RES_EXEC_SUCCESS_MESSAGE*>(res_exec_message);
-            name = res_exec_success_message->name;
-            argTypes = res_exec_success_message->argTypes;
-            args = res_exec_success_message->args;
+
+            while (res_exec_success_message->argTypes[argc-1] != ARG_TERMINATOR) {
+                argc++;
+            }
+
+            for (int i = 0; i < argc; i++) {
+                args[i] = res_exec_success_message->args[i];
+            }
+
             break;
         case EXECUTE_FAILURE:
-            res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_loc_message);
+            res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_exec_message);
             return res_failure_message->reasonCode;
         default: return EUNKNOWN;
     }
@@ -268,7 +275,9 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 }
 
 int rpcExecute() {
+    INFO("in rpcExecute");
     if (pthread_create(&thread_client, NULL, &handle_clients, NULL)) return ETHREAD;
+    pthread_join(thread_client, NULL);
     return RETURN_SUCCESS;
 }
 

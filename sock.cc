@@ -14,7 +14,7 @@ SOCK::SOCK(int portnum) {
     socklen_t socklen = sizeof(sock_addr);
 
     error = RETURN_SUCCESS;
-    hostname = new char[SIZE_HOSTNAME];
+    hostname = new char[MAX_SERVER_NAME_LEN];
 
     sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 

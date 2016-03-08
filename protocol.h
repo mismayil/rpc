@@ -9,12 +9,12 @@
 */
 
 // common definitions
-#define SIZE_CHAR           1
-#define SIZE_SHORT          2
-#define SIZE_INT            4
-#define SIZE_LONG           8
-#define SIZE_FLOAT          4
-#define SIZE_DOUBLE         8
+#define SIZE_CHAR           sizeof(char)
+#define SIZE_SHORT          sizeof(short)
+#define SIZE_INT            sizeof(int)
+#define SIZE_LONG           sizeof(long)
+#define SIZE_FLOAT          sizeof(float)
+#define SIZE_DOUBLE         sizeof(double)
 #define MAX_FUNC_NAME_LEN   64
 #define MAX_SERVER_NAME_LEN 256
 #define ARG_TERMINATOR      0

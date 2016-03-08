@@ -13,7 +13,7 @@
 
 using namespace std;
 
-FUNC_SIGNATURE::FUNC_SIGNATURE(char *name, int *argTypes): name(name) {
+FUNC_SIGNATURE::FUNC_SIGNATURE(char *name, int *argTypes): name(name), argTypes(argTypes) {
     argc = 1;
     if (argTypes != NULL) {
         while (argTypes[argc-1] != ARG_TERMINATOR) {

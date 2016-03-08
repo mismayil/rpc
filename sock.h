@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 
 #define MAX_CONNS      SOMAXCONN
-#define SIZE_HOSTNAME  256
 
 // socket class with select
 class SOCK {
