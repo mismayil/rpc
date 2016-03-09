@@ -18,10 +18,30 @@ using namespace std;
 
 static int binder_sock_fd;
 static SERVER_SOCK *server_sock;
-static pthread_t thread_server;
-static map<FUNC_SIGNATURE, skeleton> funcmap;
 
 SERVER_SOCK::SERVER_SOCK(int portnum): SOCK(portnum) {}
+
+int SERVER_SOCK::registerFunction(FUNC_SIGNATURE signature, skeleton f) {
+    map<FUNC_SIGNATURE, skeleton>::iterator it;
+    it = funcmap.find(signature);
+    if (it == funcmap.end()) funcmap.insert(pair<FUNC_SIGNATURE, skeleton>(signature, f));
+    else it->second = f;
+    return RETURN_SUCCESS;
+}
+
+int SERVER_SOCK::executeFunction(FUNC_SIGNATURE signature, int *argTypes, void **args) {
+    map<FUNC_SIGNATURE, skeleton>::iterator it;
+    it = funcmap.find(signature);
+
+    // function not found
+    if (it == funcmap.end()) return ENOFUNCTION;
+
+    // execute the function
+    skeleton func = it->second;
+    int res = func(argTypes, args);
+
+    return res;
+}
 
 // handle binder and client requests
 int SERVER_SOCK::handle_request(int i) {
@@ -42,8 +62,8 @@ int SERVER_SOCK::handle_request(int i) {
     SEGMENT *res_exec_success_segment = NULL;
     SEGMENT *res_failure_segment = NULL;
 
-    map<FUNC_SIGNATURE, skeleton>::iterator it;
     FUNC_SIGNATURE func_signature = FUNC_SIGNATURE(NULL, NULL);
+    int res;
 
     switch (segment->type) {
 
@@ -51,39 +71,25 @@ int SERVER_SOCK::handle_request(int i) {
 
             req_exec_message = dynamic_cast<REQ_EXEC_MESSAGE*>(segment->message);
 
-            // check if this function already exists
             func_signature = FUNC_SIGNATURE(req_exec_message->name, req_exec_message->argTypes);
-            it = funcmap.find(func_signature);
+            res = server_sock->executeFunction(func_signature, req_exec_message->argTypes, req_exec_message->args);
 
-            if (it == funcmap.end()) {
-
+            if (res < RETURN_SUCCESS) {
                 // send an execute failure response to the client
-                res_failure_message = new RES_FAILURE_MESSAGE(ENOFUNCTION);
+                res_failure_message = new RES_FAILURE_MESSAGE(res);
                 res_failure_segment = new SEGMENT(EXECUTE_FAILURE, res_failure_message);
                 sendSegment(sock_fd, res_failure_segment);
-
             } else {
-
-                // execute the function
-                skeleton func = it->second;
-                int res = func(req_exec_message->argTypes, req_exec_message->args);
-
-                if (res < RETURN_SUCCESS) {
-                    // send an execute failure response to the client
-                    res_failure_message = new RES_FAILURE_MESSAGE(res);
-                    res_failure_segment = new SEGMENT(EXECUTE_FAILURE, res_failure_message);
-                    sendSegment(sock_fd, res_failure_segment);
-                } else {
-                    // send an execute success response to the client
-                    res_exec_success_message = new RES_EXEC_SUCCESS_MESSAGE(req_exec_message->name, req_exec_message->argTypes, req_exec_message->args);
-                    res_exec_success_segment = new SEGMENT(EXECUTE_SUCCESS, res_exec_success_message);
-                    sendSegment(sock_fd, res_exec_success_segment);
-                }
+                // send an execute success response to the client
+                res_exec_success_message = new RES_EXEC_SUCCESS_MESSAGE(req_exec_message->name, req_exec_message->argTypes, req_exec_message->args);
+                res_exec_success_segment = new SEGMENT(EXECUTE_SUCCESS, res_exec_success_message);
+                sendSegment(sock_fd, res_exec_success_segment);
             }
 
             break;
 
         case REQUEST_TERMINATE:
+
             // verify binder socket
             if (sock_fd != binder_sock_fd) return EIBINDER;
 
@@ -227,28 +233,20 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     MESSAGE *res_reg_message = res_reg_segment->message;
     RES_REG_SUCCESS_MESSAGE *res_reg_success_message;
     RES_FAILURE_MESSAGE *res_failure_message;
-    FUNC_SIGNATURE func_signature(name, argTypes);
-    map<FUNC_SIGNATURE, skeleton>::iterator it;
+    FUNC_SIGNATURE func_signature = FUNC_SIGNATURE(name, argTypes);
 
     INFO("register response received");
 
     switch (res_reg_segment->type) {
-
         case REGISTER_SUCCESS:
             res_reg_success_message = dynamic_cast<RES_REG_SUCCESS_MESSAGE*>(res_reg_message);
             INFO("register success");
-            // store an entry for this function skeleton
-            it = funcmap.find(func_signature);
-            if (it == funcmap.end()) funcmap.insert(pair<FUNC_SIGNATURE, skeleton>(func_signature, f));
-            else it->second = f;
-
+            server_sock->registerFunction(func_signature, f);
             return res_reg_success_message->reasonCode;
-
         case REGISTER_FAILURE:
             INFO("register failure");
             res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_reg_message);
             return res_failure_message->reasonCode;
-
         default: return EUNKNOWN;
     }
 
@@ -257,6 +255,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 
 int rpcExecute() {
     INFO("in rpcExecute");
+    pthread_t thread_server;
     if (pthread_create(&thread_server, NULL, &run_server, NULL)) return ETHREAD;
     pthread_join(thread_server, NULL);
     return RETURN_SUCCESS;

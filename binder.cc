@@ -16,15 +16,15 @@ using namespace std;
 BINDER_SOCK::BINDER_SOCK(int portnum): SOCK(portnum) {}
 
 int BINDER_SOCK::registerLocation(FUNC_SIGNATURE signature, LOCATION location) {
-    vector<LOCATION> locations;
-    map<FUNC_SIGNATURE, vector<LOCATION>>::iterator it;
+    deque<LOCATION> locations;
+    map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
     it = funcmap.find(signature);
 
     if (it == funcmap.end()) {
 
         locations.push_back(location);
-        funcmap.insert(pair<FUNC_SIGNATURE, vector<LOCATION>>(signature, locations));
+        funcmap.insert(pair<FUNC_SIGNATURE, deque<LOCATION>>(signature, locations));
 
     } else {
 
@@ -39,8 +39,8 @@ int BINDER_SOCK::registerLocation(FUNC_SIGNATURE signature, LOCATION location) {
 }
 
 int BINDER_SOCK::getLocation(FUNC_SIGNATURE signature, LOCATION *location) {
-    vector<LOCATION> locations;
-    map<FUNC_SIGNATURE, vector<LOCATION>>::iterator it;
+    deque<LOCATION> locations;
+    map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
     it = funcmap.find(signature);
 
@@ -49,6 +49,37 @@ int BINDER_SOCK::getLocation(FUNC_SIGNATURE signature, LOCATION *location) {
     locations = it->second;
     *location = locations[0];
     // todo: implement round-robin location selection
+    return RETURN_SUCCESS;
+}
+
+int BINDER_SOCK::removeLocation(int sock_fd) {
+    map<FUNC_SIGNATURE, deque<LOCATION>>::iterator mit;
+    map<int, LOCATION>::iterator it;
+    deque<LOCATION>::iterator dit;
+    deque<LOCATION> locations;
+    LOCATION location = LOCATION(NULL, 0);
+    bool found = false;
+
+    it = servermap.find(sock_fd);
+
+    if (it == servermap.end()) return WNOLOCATION;
+
+    location = it->second;
+
+    for (mit = funcmap.begin(); mit != funcmap.end(); mit++) {
+        locations = mit->second;
+
+        for (dit = locations.begin(); dit != locations.end(); dit++) {
+            if (location == *dit) {
+                locations.erase(dit);
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (found) servermap.erase(sock_fd);
+
     return RETURN_SUCCESS;
 }
 
@@ -61,9 +92,9 @@ int BINDER_SOCK::handle_request(int i) {
     SEGMENT *segment = NULL;
     if (recvSegment(sock_fd, &segment) < 0) {
         INFO("connection to be closed");
-        // todo: remove a server with this sock_fd
         close(sock_fd);
         connections[i] = 0;
+        removeLocation(sock_fd);
         return RETURN_SUCCESS;
     }
 
@@ -87,7 +118,6 @@ int BINDER_SOCK::handle_request(int i) {
 
         case REQUEST_REGISTER:
             INFO("register request message");
-            server_sock_fds.insert(sock_fd);
 
             req_reg_message = dynamic_cast<REQ_REG_MESSAGE*>(segment->message);
             func_signature = FUNC_SIGNATURE(req_reg_message->name, req_reg_message->argTypes);
@@ -106,6 +136,8 @@ int BINDER_SOCK::handle_request(int i) {
                 res_reg_success_segment = new SEGMENT(REGISTER_SUCCESS, res_reg_success_message);
                 sendSegment(sock_fd, res_reg_success_segment);
             }
+
+            servermap.insert(pair<int, LOCATION>(sock_fd, location));
 
             break;
 
@@ -138,8 +170,8 @@ int BINDER_SOCK::handle_request(int i) {
             req_term_segment = new SEGMENT(REQUEST_TERMINATE, req_term_message);
 
             // send terminate request to all servers
-            for (set<int>::iterator it = server_sock_fds.begin(); it != server_sock_fds.end(); it++) {
-                sendSegment(*it, req_term_segment);
+            for (map<int, LOCATION>::iterator it = servermap.begin(); it != servermap.end(); it++) {
+                sendSegment(it->first, req_term_segment);
             }
 
             terminate();
@@ -153,16 +185,16 @@ int BINDER_SOCK::handle_request(int i) {
 }
 
 BINDER::BINDER(int portnum) {
-    sock_binder = new BINDER_SOCK(portnum);
+    binder_sock = new BINDER_SOCK(portnum);
 }
 
 void BINDER::run() {
-    sock_binder->run();
+    binder_sock->run();
 }
 
-char* BINDER::getHostName() { return sock_binder->getHostName(); }
+char* BINDER::getHostName() { return binder_sock->getHostName(); }
 
-int BINDER::getPort() { return sock_binder->getPort(); }
+int BINDER::getPort() { return binder_sock->getPort(); }
 
 int main(int argc, char *argv[]) {
     // create a binder for server and client connections

@@ -1,8 +1,11 @@
 #ifndef __PROTOCOL_H__
 #define __PROTOCOL_H__
 
+#include <map>
 #include "rpc.h"
 #include "sock.h"
+
+struct FUNC_SIGNATURE;
 
 /*
 * Protocol definitions
@@ -55,6 +58,7 @@
 
 // warning codes
 #define WDUPREG          10   // warning duplicate registration
+#define WNOLOCATION      11   // warning no location found
 
 // rpc general message
 class MESSAGE {
@@ -172,9 +176,12 @@ public:
 
 // server socket for connections with binder and clients
 class SERVER_SOCK: public SOCK {
+    std::map<FUNC_SIGNATURE, skeleton> funcmap;
 public:
     SERVER_SOCK(int portnum);
     int handle_request(int i);
+    int registerFunction(FUNC_SIGNATURE signature, skeleton f);
+    int executeFunction(FUNC_SIGNATURE signature, int *argTypes, void **args);
 };
 
 // marshalls argTypes and args
