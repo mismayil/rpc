@@ -22,17 +22,6 @@ int sendSegment(int sock_fd, SEGMENT *segment);
 // receives a tcp segment
 int recvSegment(int sock_fd, SEGMENT **segment);
 
-struct FUNC_SIGNATURE {
-    char *name;
-    int *argTypes;
-    int argc;
-
-    FUNC_SIGNATURE(char *name, int *argTypes);
-
-    bool operator<(const FUNC_SIGNATURE &fs) const;
-    bool operator==(const FUNC_SIGNATURE &fs) const;
-};
-
 /*
 * casting functions
 */
@@ -44,5 +33,32 @@ double ctod(char *str);
 
 // hostname to uint32_t ip address
 uint32_t htou(char *hostname);
+
+// defines a function signature
+struct FUNC_SIGNATURE {
+    char *name;
+    int *argTypes;
+    int argc;
+
+    FUNC_SIGNATURE(char *name, int *argTypes);
+
+    bool operator<(const FUNC_SIGNATURE &fs) const;
+    bool operator==(const FUNC_SIGNATURE &fs) const;
+};
+
+// defines a server location
+struct LOCATION {
+    char *hostname;
+    uint32_t ipaddr;
+    int port;
+
+    LOCATION(char *hostname, int port): hostname(hostname), port(port) {
+        ipaddr = htou(hostname);
+    }
+
+    bool operator==(const LOCATION &l) const {
+        return (ipaddr == l.ipaddr) && (port == l.port);
+    }
+};
 
 #endif

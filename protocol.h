@@ -170,17 +170,10 @@ public:
     char *getbuf();
 };
 
-// server socket for connections with binder
-class SERVER_BINDER_SOCK: public SOCK {
+// server socket for connections with binder and clients
+class SERVER_SOCK: public SOCK {
 public:
-    SERVER_BINDER_SOCK(int portnum);
-    int handle_request(int i);
-};
-
-// server socket for connections with clients
-class SERVER_CLIENT_SOCK: public SOCK {
-public:
-    SERVER_CLIENT_SOCK(int portnum);
+    SERVER_SOCK(int portnum);
     int handle_request(int i);
 };
 

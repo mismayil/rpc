@@ -9,7 +9,7 @@
 
 using namespace std;
 
-SOCK::SOCK(int portnum) {
+SOCK::SOCK(int portnum): TERMINATED(false) {
     struct sockaddr_in sock_addr, tmp_addr;
     socklen_t socklen = sizeof(sock_addr);
 
@@ -38,6 +38,10 @@ SOCK::SOCK(int portnum) {
     gethostname(hostname, sizeof(hostname));
 
     port = ntohs(tmp_addr.sin_port);
+
+    for (int i = 0; i < MAX_CONNS; i++) {
+        connections[i] = 0;
+    }
 }
 
 SOCK::~SOCK() {
@@ -93,7 +97,7 @@ int SOCK::accept_socks() {
 int SOCK::run() {
     listen(sock_fd, MAX_CONNS);
 
-    while (1) {
+    while (!TERMINATED) {
         init_socks();
 
         select(highsock_fd + 1, &sock_fds, NULL, NULL, NULL);
@@ -102,6 +106,21 @@ int SOCK::run() {
     }
 
     close(sock_fd);
+
+    return RETURN_SUCCESS;
+}
+
+void SOCK::terminate() { TERMINATED = true; }
+
+int SOCK::add_sock_fd(int sockfd) {
+    for (int i = 0; i < MAX_CONNS; i++) {
+        if (connections[i] == 0) {
+            connections[i] = sockfd;
+            return RETURN_SUCCESS;
+        }
+    }
+
+    return ECONNOVERFLOW;
 }
 
 char* SOCK::getHostName() { return hostname; }

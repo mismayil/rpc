@@ -25,18 +25,6 @@ EXECS = ${EXEC1} ${EXEC2} ${EXEC3} ${EXEC4}
 
 all: ${EXECS}
 
-client.o: client.c
-	${CC} -c client.c -o client.o
-
-server_functions.o: server_functions.c
-	${CC} -c server_functions.c -o server_functions.o
-
-server_function_skels.o: server_function_skels.c
-	${CC} -c server_function_skels.c -o server_function_skels.o
-
-server.o: server.c
-	${CC} -c server.c -o server.o
-
 ${EXEC1}: ${OBJECTS1}
 	${CXX} ${CXXFLAGS} $^ -o $@
 
@@ -44,10 +32,10 @@ ${EXEC2}: ${OBJECTS2}
 	${AR} ${ARFLAGS} $@ $^
 
 ${EXEC3}: ${OBJECTS3}
-	${CXX} ${CXXFLAGS} -L. $^ -lrpc -o $@
+	${CXX} -L. $^ -lrpc -pthread -o $@
 
 ${EXEC4}: ${OBJECTS4}
-	${CXX} ${CXXFLAGS} -L. $^ -lrpc -o $@
+	${CXX} -L. $^ -lrpc -pthread -o $@
 
 -include ${DEPENDS}
 
