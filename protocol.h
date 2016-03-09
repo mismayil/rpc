@@ -180,8 +180,8 @@ class SERVER_SOCK: public SOCK {
 public:
     SERVER_SOCK(int portnum);
     int handle_request(int i);
-    int registerFunction(FUNC_SIGNATURE signature, skeleton f);
-    int executeFunction(FUNC_SIGNATURE signature, int *argTypes, void **args);
+    int registerFunction(FUNC_SIGNATURE &signature, skeleton &f);
+    int executeFunction(FUNC_SIGNATURE &signature, int *argTypes, void **args);
 };
 
 // marshalls argTypes and args

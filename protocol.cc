@@ -308,7 +308,7 @@ REQ_EXEC_MESSAGE::REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args) : nam
 REQ_EXEC_MESSAGE::~REQ_EXEC_MESSAGE() {
     if (name) delete [] name;
     if (argTypes) delete [] argTypes;
-    // delete args, how?
+    // todo: delete args
 }
 
 int REQ_EXEC_MESSAGE::marshall() {
@@ -366,7 +366,7 @@ RES_EXEC_SUCCESS_MESSAGE::RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, vo
 RES_EXEC_SUCCESS_MESSAGE::~RES_EXEC_SUCCESS_MESSAGE() {
     if (name) delete [] name;
     if (argTypes) delete [] argTypes;
-    // delete args, how?
+    // todo: delete args
 }
 
 int RES_EXEC_SUCCESS_MESSAGE::marshall() {

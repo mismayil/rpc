@@ -21,7 +21,7 @@ protected:
     int accept_socks();
 public:
     SOCK(int portnum);
-    ~SOCK();
+    virtual ~SOCK();
     virtual int handle_request(int i);
     int add_sock_fd(int sockfd);
     char *getHostName();
