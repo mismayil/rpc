@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <vector>
 #include "binder.h"
 #include "protocol.h"
 
@@ -16,6 +17,7 @@ using namespace std;
 BINDER_SOCK::BINDER_SOCK(int portnum): SOCK(portnum) {}
 
 int BINDER_SOCK::registerLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
+    INFO("in registerLocation");
     deque<LOCATION> locations;
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
@@ -35,12 +37,15 @@ int BINDER_SOCK::registerLocation(FUNC_SIGNATURE &signature, LOCATION &location)
         }
 
         locations.push_back(location);
+        it->second = locations;
     }
 
+    print(funcmap);
     return RETURN_SUCCESS;
 }
 
 int BINDER_SOCK::getLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
+    INFO("in getLocation");
     deque<LOCATION> locations;
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
@@ -49,15 +54,27 @@ int BINDER_SOCK::getLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
     if (it == funcmap.end()) return ENOLOCATION;
 
     locations = it->second;
-    LOCATION front = locations.front();
-    locations.pop_front();
-    locations.push_back(front);
-    location = front;
+    location = locations.front();
+
+    for (it = funcmap.begin(); it != funcmap.end(); it++) {
+        locations = it->second;
+
+        for (unsigned int i = 0; i < locations.size(); i++) {
+            if (locations[i] == location) {
+                locations.erase(locations.begin() + i);
+                locations.push_back(location);
+                it->second = locations;
+            }
+        }
+    }
+
+    print(funcmap);
 
     return RETURN_SUCCESS;
 }
 
 int BINDER_SOCK::removeLocation(int sock_fd) {
+    DEBUG("remove", sock_fd);
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator fit;
     map<int, LOCATION>::iterator sit;
     deque<LOCATION>::iterator lit;
@@ -68,6 +85,7 @@ int BINDER_SOCK::removeLocation(int sock_fd) {
     if (sit == servermap.end()) return WNOLOCATION;
 
     LOCATION location = sit->second;
+    vector<map<FUNC_SIGNATURE, deque<LOCATION>>::iterator> vits;
 
     for (fit = funcmap.begin(); fit != funcmap.end(); fit++) {
         locations = fit->second;
@@ -75,12 +93,22 @@ int BINDER_SOCK::removeLocation(int sock_fd) {
         for (lit = locations.begin(); lit != locations.end(); lit++) {
             if (location == *lit) {
                 locations.erase(lit);
+                fit->second = locations;
+                vits.push_back(fit);
                 break;
             }
         }
     }
 
+    for (unsigned int i = 0; i < vits.size(); i++) {
+        locations = vits[i]->second;
+        if (locations.size() == 0) funcmap.erase(vits[i]);
+    }
+
     servermap.erase(sock_fd);
+
+    print(funcmap);
+    print(servermap);
 
     return RETURN_SUCCESS;
 }
@@ -213,4 +241,29 @@ int main(int argc, char *argv[]) {
     cout << "BINDER_PORT " << binder->getPort() << endl;
     binder->run();
     delete binder;
+}
+
+void print(map<FUNC_SIGNATURE, std::deque<LOCATION>> funcmap) {
+    map<FUNC_SIGNATURE, std::deque<LOCATION>>::iterator it;
+    deque<LOCATION> locations;
+    INFO("FUNCMAP:");
+    for (it = funcmap.begin(); it != funcmap.end(); it++) {
+        FUNC_SIGNATURE s = it->first;
+        locations = it->second;
+        cout << s.name << ": ";
+        for (unsigned int i = 0; i < locations.size(); i++) {
+            cout << "[" << locations[i].hostname << ":" << locations[i].port << "]" << ", ";
+        }
+        cout << endl;
+    }
+}
+
+void print(map<int, LOCATION> servermap) {
+    map<int, LOCATION>::iterator it;
+    INFO("SERVERMAP:");
+    for (it = servermap.begin(); it != servermap.end(); it++) {
+        int s = it->first;
+        LOCATION location = it->second;
+        cout << s << ":" << "[" << location.hostname << ":" << location.port << "]" << endl;
+    }
 }

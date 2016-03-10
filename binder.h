@@ -29,4 +29,6 @@ public:
     int getPort();
 };
 
+void print(std::map<FUNC_SIGNATURE, std::deque<LOCATION>> funcmap);
+void print(std::map<int, LOCATION> servermap);
 #endif

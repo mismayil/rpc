@@ -157,6 +157,12 @@ int main() {
   printf("\nEXPECTED return of f4: some integer other than 0");
   printf("\nACTUAL return of f4: %d\n", s4);
 
+  int s5 = rpcCall("f5", argTypes4, args4);
+  /* test the return of f4 */
+  printf("\ncalling f5 non-registered function");
+  printf("\nEXPECTED return of f5: some integer other than 0");
+  printf("\nACTUAL return of f5: %d\n", s5);
+
   /* rpcTerminate */
   printf("\ndo you want to terminate? y/n: ");
   if (getchar() == 'y')

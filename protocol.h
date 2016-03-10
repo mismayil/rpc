@@ -172,6 +172,7 @@ public:
 // server socket for connections with binder and clients
 class SERVER_SOCK: public SOCK {
     std::map<FUNC_SIGNATURE, skeleton> funcmap;
+    pthread_mutex_t mutex_funcmap;
 public:
     SERVER_SOCK(int portnum);
     int handle_request(int i);

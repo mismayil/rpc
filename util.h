@@ -36,7 +36,7 @@ uint32_t htou(char *hostname);
 
 // defines a function signature
 struct FUNC_SIGNATURE {
-    char *name;
+    char name[MAX_FUNC_NAME_LEN];
     int *argTypes;
     int argc;
     FUNC_SIGNATURE(char *name, int *argTypes);
@@ -46,11 +46,12 @@ struct FUNC_SIGNATURE {
 
 // defines a server location
 struct LOCATION {
-    char *hostname;
+    char hostname[MAX_SERVER_NAME_LEN];
     uint32_t ipaddr;
     int port;
-    LOCATION(): hostname(NULL), ipaddr(0), port(0) {}
-    LOCATION(char *hostname, int port): hostname(hostname), port(port) {
+    LOCATION(): ipaddr(0), port(0) {}
+    LOCATION(char *hostname, int port): port(port) {
+        strcpy(this->hostname, hostname);
         ipaddr = htou(hostname);
     }
 

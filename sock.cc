@@ -42,10 +42,40 @@ SOCK::SOCK(int portnum): TERMINATED(false) {
     for (int i = 0; i < MAX_CONNS; i++) {
         connections[i] = 0;
     }
+
+    pthread_mutex_init(&mutex_jobs, NULL);
+    pthread_cond_init(&cond_jobs, NULL);
 }
 
 SOCK::~SOCK() {
     if (hostname) delete [] hostname;
+    pthread_mutex_destroy(&mutex_jobs);
+    pthread_cond_destroy(&cond_jobs);
+}
+
+void SOCK::add_job(int i) {
+    pthread_mutex_lock(&mutex_jobs);
+    jobs.push_back(i);
+    pthread_cond_signal(&cond_jobs);
+    pthread_mutex_unlock(&mutex_jobs);
+}
+
+static void* SOCK::execute_job(void *args) {
+    pthread_mutex_t *lock = (pthread_mutex_t *) args[0];
+    pthread_mutex_t *cv = (pthread_cond_t *) args[1];
+    deque<int> *jobs = (pthread_cond_t *) args[2];
+
+    while (!TERMINATED) {
+        pthread_mutex_lock(lock);
+        pthread_cond_wait(cv, lock);
+        int i = jobs->front();
+        jobs->pop_front();
+        DEBUG("THREAD", i);
+        pthread_mutex_unlock(lock);
+        handle_request(i);
+    }
+
+    return NULL;
 }
 
 int SOCK::init_socks() {
@@ -88,13 +118,23 @@ int SOCK::accept_socks() {
     if (FD_ISSET(sock_fd, &sock_fds)) handle_sock();
 
     for (int i = 0; i < MAX_CONNS; i++) {
-        if (FD_ISSET(connections[i], &sock_fds)) handle_request(i);
+        if (FD_ISSET(connections[i], &sock_fds)) add_job(i);
     }
 
     return RETURN_SUCCESS;
 }
 
 int SOCK::run() {
+    // create worker threads
+    void* args[3];
+    args[0] = (void *) &mutex_jobs;
+    args[1] = (void *) &cond_jobs;
+    args[2] = (void *) &jobs;
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        if (pthread_create(&threads[i], NULL, execute_job, (void *) args)) return ETHREAD;
+    }
+
     listen(sock_fd, MAX_CONNS);
 
     while (!TERMINATED) {
@@ -106,6 +146,10 @@ int SOCK::run() {
     }
 
     close(sock_fd);
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
 
     return RETURN_SUCCESS;
 }

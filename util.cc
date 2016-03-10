@@ -13,7 +13,9 @@
 
 using namespace std;
 
-FUNC_SIGNATURE::FUNC_SIGNATURE(char *name, int *argTypes): name(name), argTypes(argTypes) {
+FUNC_SIGNATURE::FUNC_SIGNATURE(char *name, int *argTypes): argTypes(argTypes) {
+    strcpy(this->name, name);
+
     argc = 1;
     if (argTypes != NULL) {
         while (argTypes[argc-1] != ARG_TERMINATOR) {
