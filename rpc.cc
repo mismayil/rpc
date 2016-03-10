@@ -21,7 +21,7 @@ static SERVER_SOCK *server_sock;
 
 SERVER_SOCK::SERVER_SOCK(int portnum): SOCK(portnum) {}
 
-int SERVER_SOCK::registerFunction(FUNC_SIGNATURE &signature, skeleton &f) {
+int SERVER_SOCK::registerFunction(FUNC_SIGNATURE &signature, skeleton f) {
     map<FUNC_SIGNATURE, skeleton>::iterator it;
     it = funcmap.find(signature);
     if (it == funcmap.end()) funcmap.insert(pair<FUNC_SIGNATURE, skeleton>(signature, f));
@@ -57,55 +57,44 @@ int SERVER_SOCK::handle_request(int i) {
         return ret;
     }
 
-    REQ_EXEC_MESSAGE *req_exec_message = NULL;
-    MESSAGE *res_exec_success_message = NULL;
-    MESSAGE *res_failure_message = NULL;
-    SEGMENT *res_exec_success_segment = NULL;
-    SEGMENT *res_failure_segment = NULL;
-
-    FUNC_SIGNATURE *func_signature = NULL;
-
     switch (segment->type) {
 
         case REQUEST_EXECUTE:
+        {
+            REQ_EXEC_MESSAGE *req_exec_message = dynamic_cast<REQ_EXEC_MESSAGE*>(segment->message);
 
-            req_exec_message = dynamic_cast<REQ_EXEC_MESSAGE*>(segment->message);
-
-            func_signature = new FUNC_SIGNATURE(req_exec_message->name, req_exec_message->argTypes);
-            ret = executeFunction(*func_signature, req_exec_message->argTypes, req_exec_message->args);
+            FUNC_SIGNATURE func_signature(req_exec_message->name, req_exec_message->argTypes);
+            ret = executeFunction(func_signature, req_exec_message->argTypes, req_exec_message->args);
 
             if (ret < RETURN_SUCCESS) {
                 // send an execute failure response to the client
-                res_failure_message = new RES_FAILURE_MESSAGE(ret);
-                res_failure_segment = new SEGMENT(EXECUTE_FAILURE, res_failure_message);
+                MESSAGE *res_failure_message = new RES_FAILURE_MESSAGE(ret);
+                SEGMENT *res_failure_segment = new SEGMENT(EXECUTE_FAILURE, res_failure_message);
                 sendSegment(sock_fd, res_failure_segment);
 
-                delete res_failure_message;
                 delete res_failure_segment;
             } else {
                 // send an execute success response to the client
-                res_exec_success_message = new RES_EXEC_SUCCESS_MESSAGE(req_exec_message->name, req_exec_message->argTypes, req_exec_message->args);
-                res_exec_success_segment = new SEGMENT(EXECUTE_SUCCESS, res_exec_success_message);
+                MESSAGE *res_exec_success_message = new RES_EXEC_SUCCESS_MESSAGE(req_exec_message->name, req_exec_message->argTypes, req_exec_message->args);
+                SEGMENT *res_exec_success_segment = new SEGMENT(EXECUTE_SUCCESS, res_exec_success_message);
                 sendSegment(sock_fd, res_exec_success_segment);
 
-                delete res_exec_success_message;
                 delete res_exec_success_segment;
             }
+        }
 
-            delete func_signature;
-            delete req_exec_message;
-
-            break;
+        break;
 
         case REQUEST_TERMINATE:
-
+        {
             // verify binder socket
             if (sock_fd != BINDER_SOCK_FD) return EIBINDER;
 
             // terminate server
             terminate();
+        }
 
-            break;
+        break;
 
         default: return EUNKNOWN;
     }
@@ -154,7 +143,6 @@ int rpcCall(char* name, int* argTypes, void** args) {
     char *BINDER_ADDRESS, *SERVER_ADDRESS;
     int BINDER_PORT, SERVER_PORT;
     int binder_sock_fd, server_sock_fd;
-    RES_FAILURE_MESSAGE *res_failure_message;
     int ret = RETURN_SUCCESS;
 
     // get binder address and port
@@ -176,24 +164,26 @@ int rpcCall(char* name, int* argTypes, void** args) {
     SEGMENT *res_loc_segment = NULL;
     recvSegment(binder_sock_fd, &res_loc_segment);
     MESSAGE *res_loc_message = res_loc_segment->message;
-    RES_LOC_SUCCESS_MESSAGE *res_loc_success_message;
 
     close(binder_sock_fd);
 
     switch (res_loc_segment->type) {
         case LOCATION_SUCCESS:
-            res_loc_success_message = dynamic_cast<RES_LOC_SUCCESS_MESSAGE*>(res_loc_message);
+        {
+            RES_LOC_SUCCESS_MESSAGE *res_loc_success_message = dynamic_cast<RES_LOC_SUCCESS_MESSAGE*>(res_loc_message);
             SERVER_ADDRESS = res_loc_success_message->serverID;
             SERVER_PORT = res_loc_success_message->port;
-            break;
+        }
+        break;
         case LOCATION_FAILURE:
-            res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_loc_message);
+        {
+            RES_FAILURE_MESSAGE *res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_loc_message);
             ret = res_failure_message->reasonCode;
-            break;
+        }
+        break;
         default: return EUNKNOWN;
     }
 
-    delete res_loc_message;
     delete res_loc_segment;
 
     if (ret) return ret;
@@ -213,15 +203,16 @@ int rpcCall(char* name, int* argTypes, void** args) {
     SEGMENT *res_exec_segment = NULL;
     recvSegment(server_sock_fd, &res_exec_segment);
     MESSAGE *res_exec_message = res_exec_segment->message;
-    RES_EXEC_SUCCESS_MESSAGE *res_exec_success_message;
-    int argc = 1;
 
     close(server_sock_fd);
 
     switch (res_exec_segment->type) {
-        case EXECUTE_SUCCESS:
-            res_exec_success_message = dynamic_cast<RES_EXEC_SUCCESS_MESSAGE*>(res_exec_message);
 
+        case EXECUTE_SUCCESS:
+        {
+            RES_EXEC_SUCCESS_MESSAGE *res_exec_success_message = dynamic_cast<RES_EXEC_SUCCESS_MESSAGE*>(res_exec_message);
+
+            int argc = 1;
             while (res_exec_success_message->argTypes[argc-1] != ARG_TERMINATOR) {
                 argc++;
             }
@@ -229,16 +220,21 @@ int rpcCall(char* name, int* argTypes, void** args) {
             for (int i = 0; i < argc; i++) {
                 args[i] = res_exec_success_message->args[i];
             }
+        }
 
-            break;
+        break;
+
         case EXECUTE_FAILURE:
-            res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_exec_message);
+        {
+            RES_FAILURE_MESSAGE *res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_exec_message);
             ret = res_failure_message->reasonCode;
-            break;
+        }
+
+        break;
+
         default: return EUNKNOWN;
     }
 
-    delete res_exec_message;
     delete res_exec_segment;
 
     return ret;
@@ -264,28 +260,34 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     SEGMENT* res_reg_segment = NULL;
     recvSegment(BINDER_SOCK_FD, &res_reg_segment);
     MESSAGE *res_reg_message = res_reg_segment->message;
-    RES_REG_SUCCESS_MESSAGE *res_reg_success_message;
-    RES_FAILURE_MESSAGE *res_failure_message;
-    FUNC_SIGNATURE *func_signature = new FUNC_SIGNATURE(name, argTypes);
 
     INFO("register response received");
 
     switch (res_reg_segment->type) {
+
         case REGISTER_SUCCESS:
-            res_reg_success_message = dynamic_cast<RES_REG_SUCCESS_MESSAGE*>(res_reg_message);
+        {
+            RES_REG_SUCCESS_MESSAGE *res_reg_success_message = dynamic_cast<RES_REG_SUCCESS_MESSAGE*>(res_reg_message);
             INFO("register success");
-            server_sock->registerFunction(*func_signature, f);
+            FUNC_SIGNATURE func_signature(name, argTypes);
+            server_sock->registerFunction(func_signature, f);
             ret = res_reg_success_message->reasonCode;
-            break;
+        }
+
+        break;
+
         case REGISTER_FAILURE:
+        {
             INFO("register failure");
-            res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_reg_message);
+            RES_FAILURE_MESSAGE *res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_reg_message);
             ret = res_failure_message->reasonCode;
-            break;
+        }
+
+        break;
+
         default: return EUNKNOWN;
     }
 
-    delete res_reg_message;
     delete res_reg_segment;
 
     return ret;
@@ -322,7 +324,6 @@ int rpcTerminate() {
     SEGMENT *req_term_segment = new SEGMENT(REQUEST_TERMINATE, req_term_message);
     ret = sendSegment(binder_sock_fd, req_term_segment);
 
-    delete req_term_message;
     delete req_term_segment;
 
     close(binder_sock_fd);

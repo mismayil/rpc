@@ -82,7 +82,6 @@ public:
     char *name;
     int *argTypes;
     REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes);
-    ~REQ_REG_MESSAGE();
     int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -102,7 +101,6 @@ public:
     char *name;
     int *argTypes;
     REQ_LOC_MESSAGE(char *name, int *argTypes);
-    ~REQ_LOC_MESSAGE();
     int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -113,7 +111,6 @@ public:
     char *serverID;
     int port;
     RES_LOC_SUCCESS_MESSAGE(char *serverID, int port);
-    ~RES_LOC_SUCCESS_MESSAGE();
     int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -125,7 +122,6 @@ public:
     int *argTypes;
     void **args;
     REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args);
-    ~REQ_EXEC_MESSAGE();
     int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -137,7 +133,6 @@ public:
     int *argTypes;
     void **args;
     RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, void **args);
-    ~RES_EXEC_SUCCESS_MESSAGE();
     int marshall() override;
     static MESSAGE* unmarshall(char *msg);
 };
@@ -180,7 +175,7 @@ class SERVER_SOCK: public SOCK {
 public:
     SERVER_SOCK(int portnum);
     int handle_request(int i);
-    int registerFunction(FUNC_SIGNATURE &signature, skeleton &f);
+    int registerFunction(FUNC_SIGNATURE &signature, skeleton f);
     int executeFunction(FUNC_SIGNATURE &signature, int *argTypes, void **args);
 };
 

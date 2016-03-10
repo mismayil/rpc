@@ -40,8 +40,6 @@ struct FUNC_SIGNATURE {
     int *argTypes;
     int argc;
     FUNC_SIGNATURE(char *name, int *argTypes);
-    FUNC_SIGNATURE();
-    ~FUNC_SIGNATURE();
     bool operator<(const FUNC_SIGNATURE &fs) const;
     bool operator==(const FUNC_SIGNATURE &fs) const;
 };
@@ -52,14 +50,8 @@ struct LOCATION {
     uint32_t ipaddr;
     int port;
     LOCATION(): hostname(NULL), ipaddr(0), port(0) {}
-    LOCATION(char *hostname, int port): port(port) {
+    LOCATION(char *hostname, int port): hostname(hostname), port(port) {
         ipaddr = htou(hostname);
-        this->hostname = new char[MAX_SERVER_NAME_LEN];
-        strcpy(this->hostname, hostname);
-    }
-
-    ~LOCATION() {
-        if (hostname) delete [] hostname;
     }
 
     bool operator==(const LOCATION &l) const {

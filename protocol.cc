@@ -6,10 +6,11 @@
 
 using namespace std;
 
-SEGMENT::SEGMENT(int type, MESSAGE *message) : length(0), type(type), message(message) {}
+SEGMENT::SEGMENT(int type, MESSAGE *message) : len(0), buf(NULL), length(0), type(type), message(message) {}
 
 SEGMENT::~SEGMENT() {
     if (buf) delete [] buf;
+    if (message) delete message;
 }
 
 int SEGMENT::encapsulate() {
@@ -96,12 +97,6 @@ int MESSAGE::getlen() { return len; }
 char* MESSAGE::getbuf() { return buf; }
 
 REQ_REG_MESSAGE::REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes) : serverID(serverID), port(port), name(name), argTypes(argTypes) {}
-
-REQ_REG_MESSAGE::~REQ_REG_MESSAGE() {
-    if (serverID) delete [] serverID;
-    if (name) delete [] name;
-    if (argTypes) delete [] argTypes;
-}
 
 int REQ_REG_MESSAGE::marshall() {
     INFO("in REQ_REG_MESSAGE marshall");
@@ -201,11 +196,6 @@ MESSAGE* RES_REG_SUCCESS_MESSAGE::unmarshall(char *msg) {
 
 REQ_LOC_MESSAGE::REQ_LOC_MESSAGE(char *name, int *argTypes) : name(name), argTypes(argTypes) {}
 
-REQ_LOC_MESSAGE::~REQ_LOC_MESSAGE() {
-    if (name) delete [] name;
-    if (argTypes) delete [] argTypes;
-}
-
 int REQ_LOC_MESSAGE::marshall() {
     int argc = 1;
 
@@ -263,10 +253,6 @@ MESSAGE* REQ_LOC_MESSAGE::unmarshall(char *msg) {
 
 RES_LOC_SUCCESS_MESSAGE::RES_LOC_SUCCESS_MESSAGE(char *serverID, int port) : serverID(serverID), port(port) {}
 
-RES_LOC_SUCCESS_MESSAGE::~RES_LOC_SUCCESS_MESSAGE() {
-    if (serverID) delete [] serverID;
-}
-
 int RES_LOC_SUCCESS_MESSAGE::marshall() {
     len = MAX_SERVER_NAME_LEN + SIZE_INT;
     buf = new char[len];
@@ -304,12 +290,6 @@ MESSAGE* RES_LOC_SUCCESS_MESSAGE::unmarshall(char *msg) {
 }
 
 REQ_EXEC_MESSAGE::REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args) : name(name), argTypes(argTypes), args(args) {}
-
-REQ_EXEC_MESSAGE::~REQ_EXEC_MESSAGE() {
-    if (name) delete [] name;
-    if (argTypes) delete [] argTypes;
-    // todo: delete args
-}
 
 int REQ_EXEC_MESSAGE::marshall() {
     // marshall argTypes and args
@@ -362,12 +342,6 @@ MESSAGE* REQ_TERM_MESSAGE::unmarshall(char *msg) {
 }
 
 RES_EXEC_SUCCESS_MESSAGE::RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, void **args) : name(name), argTypes(argTypes), args(args) {}
-
-RES_EXEC_SUCCESS_MESSAGE::~RES_EXEC_SUCCESS_MESSAGE() {
-    if (name) delete [] name;
-    if (argTypes) delete [] argTypes;
-    // todo: delete args
-}
 
 int RES_EXEC_SUCCESS_MESSAGE::marshall() {
     // marshall argTypes and args

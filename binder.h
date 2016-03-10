@@ -14,8 +14,8 @@ class BINDER_SOCK: public SOCK {
 public:
     BINDER_SOCK(int portnum);
     int handle_request(int i);
-    int registerLocation(FUNC_SIGNATURE *signature, LOCATION *location);
-    int getLocation(FUNC_SIGNATURE *signature, LOCATION *location);
+    int registerLocation(FUNC_SIGNATURE &signature, LOCATION &location);
+    int getLocation(FUNC_SIGNATURE &signature, LOCATION &location);
     int removeLocation(int sock_fd);
 };
 

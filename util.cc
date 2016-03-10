@@ -13,29 +13,13 @@
 
 using namespace std;
 
-FUNC_SIGNATURE::FUNC_SIGNATURE(): name(NULL), argTypes(NULL) {}
-
-FUNC_SIGNATURE::FUNC_SIGNATURE(char *name, int *argTypes) {
-    this->name = new char[MAX_FUNC_NAME_LEN];
-    strcpy(this->name, name);
-
+FUNC_SIGNATURE::FUNC_SIGNATURE(char *name, int *argTypes): name(name), argTypes(argTypes) {
     argc = 1;
     if (argTypes != NULL) {
         while (argTypes[argc-1] != ARG_TERMINATOR) {
             argc++;
         }
     }
-
-    this->argTypes = new int[argc];
-
-    for (int i = 0; i < argc; i++) {
-        this->argTypes[i] = argTypes[i];
-    }
-}
-
-FUNC_SIGNATURE::~FUNC_SIGNATURE() {
-    if (name) delete [] name;
-    if (argTypes) delete [] argTypes;
 }
 
 bool FUNC_SIGNATURE::operator<(const FUNC_SIGNATURE &fs) const {
