@@ -2,12 +2,12 @@
 #define __SOCK_H__
 
 #include <sys/socket.h>
-#include <deque>
-#include <pthread.h>
 
 #define MAX_CONNS      SOMAXCONN
 #define ECONNOVERFLOW  -30
-#define NUM_THREADS    8
+#define CLOSED         -1
+
+class SCHEDULER;
 
 // socket class with select
 class SOCK {
@@ -19,26 +19,25 @@ protected:
     int sock_fd, highsock_fd;
     int error;
     bool TERMINATED;
-    pthread_t threads[NUM_THREADS];
-    std::deque<int> jobs;
-    pthread_cond_t cond_jobs;
-    pthread_mutex_t mutex_jobs;
-    void add_job(int i);
-    static void *execute_job(void *args);
+    SCHEDULER *scheduler;
+    pthread_mutex_t mutex_conn;
     int init_socks();
     int handle_sock();
     int accept_socks();
+    static void* run_scheduler(void *ptr);
 public:
     SOCK(int portnum);
     virtual ~SOCK();
-    virtual int handle_request(int i);
-    int add_sock_fd(int sockfd);
+    virtual int handle_request(int sock_fd);
+    int add_sockfd(int sockfd);
+    void close_sockfd(int sockfd);
     char *getHostName();
     int getPort();
     int getSockfd();
     int getError();
     int run();
     void terminate();
+    bool terminated();
 };
 
 #endif

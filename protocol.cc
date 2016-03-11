@@ -14,12 +14,12 @@ SEGMENT::~SEGMENT() {
 }
 
 int SEGMENT::encapsulate() {
-    INFO("in SEGMENT encapsulate");
+    // INFO("in SEGMENT encapsulate");
     message->marshall();
     char *msgbuf = message->getbuf();
     int msglen = message->getlen();
     length = SIZE_INT + msglen + 1;
-    DEBUG("segment length", length);
+    // DEBUG("segment length", length);
 
     len = length + SIZE_INT;
     buf = new char[len];
@@ -99,14 +99,14 @@ char* MESSAGE::getbuf() { return buf; }
 REQ_REG_MESSAGE::REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes) : serverID(serverID), port(port), name(name), argTypes(argTypes) {}
 
 int REQ_REG_MESSAGE::marshall() {
-    INFO("in REQ_REG_MESSAGE marshall");
+    // INFO("in REQ_REG_MESSAGE marshall");
     int argc = 1;
 
     while (argTypes[argc-1] != ARG_TERMINATOR) {
         argc++;
     }
 
-    DEBUG("argc", argc);
+    // DEBUG("argc", argc);
 
     len = MAX_SERVER_NAME_LEN + SIZE_INT + MAX_FUNC_NAME_LEN + argc * SIZE_INT;
     buf = new char[len];

@@ -175,7 +175,7 @@ class SERVER_SOCK: public SOCK {
     pthread_mutex_t mutex_funcmap;
 public:
     SERVER_SOCK(int portnum);
-    int handle_request(int i);
+    int handle_request(int sock_fd);
     int registerFunction(FUNC_SIGNATURE &signature, skeleton f);
     int executeFunction(FUNC_SIGNATURE &signature, int *argTypes, void **args);
 };

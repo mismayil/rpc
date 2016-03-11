@@ -69,7 +69,7 @@ bool FUNC_SIGNATURE::operator==(const FUNC_SIGNATURE &fs) const {
 }
 
 int connectTo(char *address, int port) {
-    INFO("in connectTo");
+    //INFO("in connectTo");
     int sock_fd;
     struct sockaddr_in sock_addr;
     struct hostent *host;

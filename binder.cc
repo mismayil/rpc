@@ -14,13 +14,16 @@
 
 using namespace std;
 
-BINDER_SOCK::BINDER_SOCK(int portnum): SOCK(portnum) {}
+BINDER_SOCK::BINDER_SOCK(int portnum): SOCK(portnum) {
+    pthread_mutex_init(&mutex_lock, NULL);
+}
 
 int BINDER_SOCK::registerLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
     INFO("in registerLocation");
     deque<LOCATION> locations;
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
+    pthread_mutex_lock(&mutex_lock);
     it = funcmap.find(signature);
 
     if (it == funcmap.end()) {
@@ -33,14 +36,22 @@ int BINDER_SOCK::registerLocation(FUNC_SIGNATURE &signature, LOCATION &location)
         locations = it->second;
 
         for (unsigned int i = 0; i < locations.size(); i++) {
-            if (location == locations[i]) return RETURN_FAILURE;
+            if (location == locations[i]) {
+                pthread_mutex_unlock(&mutex_lock);
+                INFO("location already exists");
+                return RETURN_FAILURE;
+            }
         }
 
         locations.push_back(location);
         it->second = locations;
     }
 
+    servermap.insert(pair<int, LOCATION>(sock_fd, location));
+
     print(funcmap);
+    pthread_mutex_unlock(&mutex_lock);
+    INFO("location registered");
     return RETURN_SUCCESS;
 }
 
@@ -49,9 +60,14 @@ int BINDER_SOCK::getLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
     deque<LOCATION> locations;
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
+    pthread_mutex_lock(&mutex_lock);
     it = funcmap.find(signature);
 
-    if (it == funcmap.end()) return ENOLOCATION;
+    if (it == funcmap.end()) {
+        pthread_mutex_unlock(&mutex_lock);
+        INFO("no location found");
+        return ENOLOCATION;
+    }
 
     locations = it->second;
     location = locations.front();
@@ -69,20 +85,26 @@ int BINDER_SOCK::getLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
     }
 
     print(funcmap);
-
+    pthread_mutex_unlock(&mutex_lock);
+    INFO("location returned");
     return RETURN_SUCCESS;
 }
 
 int BINDER_SOCK::removeLocation(int sock_fd) {
-    DEBUG("remove", sock_fd);
+    INFO("in removeLocation");
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator fit;
     map<int, LOCATION>::iterator sit;
     deque<LOCATION>::iterator lit;
     deque<LOCATION> locations;
 
+    pthread_mutex_lock(&mutex_lock);
     sit = servermap.find(sock_fd);
 
-    if (sit == servermap.end()) return WNOLOCATION;
+    if (sit == servermap.end()) {
+        pthread_mutex_unlock(&mutex_lock);
+        INFO("location not found");
+        return WNOLOCATION;
+    }
 
     LOCATION location = sit->second;
     vector<map<FUNC_SIGNATURE, deque<LOCATION>>::iterator> vits;
@@ -109,33 +131,46 @@ int BINDER_SOCK::removeLocation(int sock_fd) {
 
     print(funcmap);
     print(servermap);
-
+    pthread_mutex_unlock(&mutex_lock);
+    DEBUG("location removed", sock_fd);
     return RETURN_SUCCESS;
 }
 
-int BINDER_SOCK::handle_request(int i) {
+int BINDER_SOCK::terminateLocations(SEGMENT *segment) {
+    // send terminate request to all servers
+    INFO("in terminateLocations");
+    pthread_mutex_lock(&mutex_lock);
+    for (map<int, LOCATION>::iterator it = servermap.begin(); it != servermap.end(); it++) {
+        sendSegment(it->first, segment);
+        INFO("terminate request sent");
+    }
+    pthread_mutex_unlock(&mutex_lock);
+    INFO("all terminate requests sent");
+    return RETURN_SUCCESS;
+}
+
+int BINDER_SOCK::handle_request(int sock_fd) {
     INFO("in BINDER_SOCK handle_request");
-    int sock_fd = connections[i];
+    //int sock_fd = connections[i];
     int ret = RETURN_SUCCESS;
 
     // receive a request from either server or client
     SEGMENT *segment = NULL;
     if (recvSegment(sock_fd, &segment) < 0) {
         INFO("connection to be closed");
-        close(sock_fd);
-        connections[i] = 0;
+        close_sockfd(sock_fd);
         removeLocation(sock_fd);
         return ret;
     }
 
-    INFO("message received");
+    INFO("segment received");
 
     // handle the request according to its type
     switch (segment->type) {
 
         case REQUEST_REGISTER:
         {
-            INFO("register request message");
+            INFO("register request");
             REQ_REG_MESSAGE *req_reg_message = dynamic_cast<REQ_REG_MESSAGE*>(segment->message);
             FUNC_SIGNATURE func_signature(req_reg_message->name, req_reg_message->argTypes);
             LOCATION location(req_reg_message->serverID, req_reg_message->port);
@@ -147,25 +182,24 @@ int BINDER_SOCK::handle_request(int i) {
                 MESSAGE *res_failure_message = new RES_FAILURE_MESSAGE(ret);
                 SEGMENT *res_failure_segment = new SEGMENT(REGISTER_FAILURE, res_failure_message);
                 sendSegment(sock_fd, res_failure_segment);
-
+                INFO("register failure sent");
                 delete res_failure_segment;
             } else {
                 // send a register success response
                 MESSAGE *res_reg_success_message = new RES_REG_SUCCESS_MESSAGE(ret);
                 SEGMENT *res_reg_success_segment = new SEGMENT(REGISTER_SUCCESS, res_reg_success_message);
                 sendSegment(sock_fd, res_reg_success_segment);
-
+                INFO("register success sent");
                 delete res_reg_success_segment;
             }
 
-            servermap.insert(pair<int, LOCATION>(sock_fd, location));
         }
 
         break;
 
         case REQUEST_LOCATION:
         {
-            INFO("location request message");
+            INFO("location request");
             REQ_LOC_MESSAGE *req_loc_message = dynamic_cast<REQ_LOC_MESSAGE*>(segment->message);
             LOCATION location;
             FUNC_SIGNATURE func_signature(req_loc_message->name, req_loc_message->argTypes);
@@ -177,14 +211,14 @@ int BINDER_SOCK::handle_request(int i) {
                 MESSAGE *res_failure_message = new RES_FAILURE_MESSAGE(ret);
                 SEGMENT *res_failure_segment = new SEGMENT(LOCATION_FAILURE, res_failure_message);
                 sendSegment(sock_fd, res_failure_segment);
-
+                INFO("location failure sent");
                 delete res_failure_segment;
             } else {
                 // send a location success response
                 MESSAGE *res_loc_success_message = new RES_LOC_SUCCESS_MESSAGE(location.hostname, location.port);
                 SEGMENT *res_loc_success_segment = new SEGMENT(LOCATION_SUCCESS, res_loc_success_message);
                 sendSegment(sock_fd, res_loc_success_segment);
-
+                INFO("location success sent");
                 delete res_loc_success_segment;
             }
         }
@@ -193,14 +227,11 @@ int BINDER_SOCK::handle_request(int i) {
 
         case REQUEST_TERMINATE:
         {
-            INFO("terminate message");
+            INFO("terminate request");
             MESSAGE *req_term_message = new REQ_TERM_MESSAGE();
             SEGMENT *req_term_segment = new SEGMENT(REQUEST_TERMINATE, req_term_message);
 
-            // send terminate request to all servers
-            for (map<int, LOCATION>::iterator it = servermap.begin(); it != servermap.end(); it++) {
-                sendSegment(it->first, req_term_segment);
-            }
+            terminateLocations(req_term_segment);
 
             delete req_term_segment;
 
