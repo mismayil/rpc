@@ -1,3 +1,8 @@
 GROUP:
     - Mahammad Ismayilzada - mismayil, 20496519
     - Aydin Aliyev         - a2aliyev, 20495793
+
+COMPILE:
+    - make
+
+NOTE: server and client has a dependency on pthread. Compile with -pthread.

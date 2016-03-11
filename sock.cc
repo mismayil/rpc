@@ -43,8 +43,6 @@ SOCK::SOCK(int portnum): TERMINATED(false) {
     for (int i = 0; i < MAX_CONNS; i++) {
         connections[i] = CLOSED;
     }
-
-    pthread_mutex_init(&mutex_conn, NULL);
 }
 
 SOCK::~SOCK() {
@@ -56,14 +54,12 @@ int SOCK::init_socks() {
     FD_SET(sock_fd, &sock_fds);
     highsock_fd = sock_fd;
 
-    pthread_mutex_lock(&mutex_conn);
     for (int i = 0; i < MAX_CONNS; i++) {
         if (connections[i] != CLOSED) {
             FD_SET(connections[i], &sock_fds);
             if (connections[i] > highsock_fd) highsock_fd = connections[i];
         }
     }
-    pthread_mutex_unlock(&mutex_conn);
 
     return RETURN_SUCCESS;
 }
@@ -74,14 +70,12 @@ int SOCK::handle_sock() {
     conn_sock_fd = accept(sock_fd, NULL, NULL);
 
     if (conn_sock_fd >= 0) {
-        pthread_mutex_lock(&mutex_conn);
         for (int i = 0; i < MAX_CONNS; i++) {
             if (connections[i] == CLOSED) {
                 connections[i] = conn_sock_fd;
                 break;
             }
         }
-        pthread_mutex_unlock(&mutex_conn);
     } else {
         return EACCEPT;
     }
@@ -95,13 +89,9 @@ int SOCK::accept_socks() {
     if (FD_ISSET(sock_fd, &sock_fds)) handle_sock();
 
     for (int i = 0; i < MAX_CONNS; i++) {
-        pthread_mutex_lock(&mutex_conn);
         if (FD_ISSET(connections[i], &sock_fds)) {
-            pthread_mutex_unlock(&mutex_conn);
             handle_request(connections[i]);
-            pthread_mutex_lock(&mutex_conn);
         }
-        pthread_mutex_unlock(&mutex_conn);
     }
 
 
@@ -129,22 +119,18 @@ void SOCK::terminate() { TERMINATED = true; }
 bool SOCK::terminated() { return TERMINATED; }
 
 int SOCK::add_sockfd(int sockfd) {
-    pthread_mutex_lock(&mutex_conn);
     for (int i = 0; i < MAX_CONNS; i++) {
         if (connections[i] == CLOSED) {
             connections[i] = sockfd;
-            pthread_mutex_unlock(&mutex_conn);
             return RETURN_SUCCESS;
         }
     }
 
-    pthread_mutex_unlock(&mutex_conn);
 
     return ECONNOVERFLOW;
 }
 
 void SOCK::close_sockfd(int sockfd) {
-    pthread_mutex_lock(&mutex_conn);
     for (int i = 0; i < MAX_CONNS; i++) {
         if (connections[i] == sockfd) {
             connections[i] = CLOSED;
@@ -152,7 +138,6 @@ void SOCK::close_sockfd(int sockfd) {
         }
     }
     close(sockfd);
-    pthread_mutex_unlock(&mutex_conn);
 }
 
 char* SOCK::getHostName() { return hostname; }

@@ -1,4 +1,4 @@
-source export.sh nettop22 $1
+source export.sh nettop09 $1
 ./client &
 ./client &
 ./client &

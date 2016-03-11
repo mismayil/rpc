@@ -21,87 +21,87 @@ static int BINDER_SOCK_FD;
 static SERVER_SOCK *server_sock;
 
 SERVER_SOCK::SERVER_SOCK(int portnum): SOCK(portnum) {
-    pthread_mutex_init(&mutex_funcmap, NULL);
-    scheduler = new SCHEDULER(this, handle_request);
-    pthread_t thread_scheduler;
-    pthread_create(&thread_scheduler, NULL, run_scheduler, (void *) scheduler);
+    // pthread_mutex_init(&mutex_funcmap, NULL);
+    // scheduler = new SCHEDULER(this, handle_request);
+    // pthread_t thread_scheduler;
+    // pthread_create(&thread_scheduler, NULL, run_scheduler, (void *) scheduler);
 }
 
 int SERVER_SOCK::registerFunction(FUNC_SIGNATURE &signature, skeleton f) {
-    INFO("in registerFunction");
+    // INFO("in registerFunction");
     map<FUNC_SIGNATURE, skeleton>::iterator it;
-    pthread_mutex_lock(&mutex_funcmap);
+    // pthread_mutex_lock(&mutex_funcmap);
     it = funcmap.find(signature);
     if (it == funcmap.end()) funcmap.insert(pair<FUNC_SIGNATURE, skeleton>(signature, f));
     else it->second = f;
-    pthread_mutex_unlock(&mutex_funcmap);
-    INFO("func registered");
+    // pthread_mutex_unlock(&mutex_funcmap);
+    //INFO("func registered");
     return RETURN_SUCCESS;
 }
 
 int SERVER_SOCK::executeFunction(FUNC_SIGNATURE &signature, int *argTypes, void **args) {
-    INFO("in executeFunction");
+    // INFO("in executeFunction");
     map<FUNC_SIGNATURE, skeleton>::iterator it;
-    pthread_mutex_lock(&mutex_funcmap);
+    // pthread_mutex_lock(&mutex_funcmap);
     it = funcmap.find(signature);
 
     // function not found
     if (it == funcmap.end()) {
-        INFO("no function found");
-        pthread_mutex_unlock(&mutex_funcmap);
+        // INFO("no function found");
+        // pthread_mutex_unlock(&mutex_funcmap);
         return ENOFUNCTION;
     }
 
     // execute the function
     skeleton func = it->second;
     int ret = func(argTypes, args);
-    pthread_mutex_unlock(&mutex_funcmap);
-    INFO("func executed");
+    //pthread_mutex_unlock(&mutex_funcmap);
+    // INFO("func executed");
     return ret;
 }
 
-void* SERVER_SOCK::run_scheduler(void *ptr) {
-    SCHEDULER *scheduler = (SCHEDULER *) ptr;
-    scheduler->run();
-    return NULL;
-}
+// void* SERVER_SOCK::run_scheduler(void *ptr) {
+//     SCHEDULER *scheduler = (SCHEDULER *) ptr;
+//     scheduler->run();
+//     return NULL;
+// }
 
-int SERVER_SOCK::handle_request(SOCK *sock, int sock_fd) {
-    SERVER_SOCK *serv_sock = dynamic_cast<SERVER_SOCK*>(sock);
-    INFO("in SERVER_SOCK handle_request");
+int SERVER_SOCK::handle_request(int sock_fd) {
+    // SERVER_SOCK *serv_sock = dynamic_cast<SERVER_SOCK*>(sock);
+    // INFO("in SERVER_SOCK handle_request");
     //int sock_fd = i; //server_sock->connections[i];
     int ret = RETURN_SUCCESS;
 
     // receive a request from either binder or client
     SEGMENT *segment = NULL;
     if (recvSegment(sock_fd, &segment) < 0) {
-        serv_sock->close_sockfd(sock_fd);
+        close_sockfd(sock_fd);
         return ret;
     }
 
-    INFO("segment received");
+    // INFO("segment received");
     switch (segment->type) {
 
         case REQUEST_EXECUTE:
         {
-            INFO("execute request");
+            // INFO("execute request");
             REQ_EXEC_MESSAGE *req_exec_message = dynamic_cast<REQ_EXEC_MESSAGE*>(segment->message);
             FUNC_SIGNATURE func_signature(req_exec_message->name, req_exec_message->argTypes);
-            ret = serv_sock->executeFunction(func_signature, req_exec_message->argTypes, req_exec_message->args);
+            ret = executeFunction(func_signature, req_exec_message->argTypes, req_exec_message->args);
 
             if (ret < RETURN_SUCCESS) {
                 // send an execute failure response to the client
                 MESSAGE *res_failure_message = new RES_FAILURE_MESSAGE(ret);
                 SEGMENT *res_failure_segment = new SEGMENT(EXECUTE_FAILURE, res_failure_message);
                 sendSegment(sock_fd, res_failure_segment);
-                INFO("execute failure sent");
+                // INFO("execute failure sent");
                 delete res_failure_segment;
             } else {
                 // send an execute success response to the client
                 MESSAGE *res_exec_success_message = new RES_EXEC_SUCCESS_MESSAGE(req_exec_message->name, req_exec_message->argTypes, req_exec_message->args);
                 SEGMENT *res_exec_success_segment = new SEGMENT(EXECUTE_SUCCESS, res_exec_success_message);
                 sendSegment(sock_fd, res_exec_success_segment);
-                INFO("execute success sent");
+                // INFO("execute success sent");
                 delete res_exec_success_segment;
             }
         }
@@ -110,13 +110,13 @@ int SERVER_SOCK::handle_request(SOCK *sock, int sock_fd) {
 
         case REQUEST_TERMINATE:
         {
-            INFO("terminate request");
+            // INFO("terminate request");
             // verify binder socket
             if (sock_fd != BINDER_SOCK_FD) return EIBINDER;
 
             // terminate server
-            serv_sock->terminate();
-            INFO("terminated");
+            terminate();
+            // INFO("terminated");
         }
 
         break;
@@ -129,14 +129,14 @@ int SERVER_SOCK::handle_request(SOCK *sock, int sock_fd) {
     return RETURN_SUCCESS;
 }
 
-// handle binder and client requests
-int SERVER_SOCK::handle_request(int sock_fd) {
-    scheduler->add_job(sock_fd);
-    return RETURN_SUCCESS;
-}
+// // handle binder and client requests
+// int SERVER_SOCK::handle_request(int sock_fd) {
+//     scheduler->add_job(sock_fd);
+//     return RETURN_SUCCESS;
+// }
 
 int rpcInit() {
-    INFO("in rpcInit");
+    // INFO("in rpcInit");
     char *BINDER_ADDRESS;
     int BINDER_PORT;
     int ret = RETURN_SUCCESS;
@@ -146,10 +146,10 @@ int rpcInit() {
     ret = server_sock->getError();
     if (ret) return ret;
 
-    INFO("SERVER_SOCK created");
-    DEBUG("SERVER_SOCK_FD", server_sock->getSockfd());
-    DEBUG("SERVER_ADDRESS", server_sock->getHostName());
-    DEBUG("SERVER_PORT", server_sock->getPort());
+    // INFO("SERVER_SOCK created");
+    // DEBUG("SERVER_SOCK_FD", server_sock->getSockfd());
+    // DEBUG("SERVER_ADDRESS", server_sock->getHostName());
+    // DEBUG("SERVER_PORT", server_sock->getPort());
 
     // get binder address and port
     BINDER_ADDRESS = getenv("BINDER_ADDRESS");
@@ -159,8 +159,8 @@ int rpcInit() {
     BINDER_SOCK_FD = connectTo(BINDER_ADDRESS, BINDER_PORT);
     if (BINDER_SOCK_FD < 0) return BINDER_SOCK_FD;
 
-    INFO("connected to the binder");
-    DEBUG("BINDER_SOCK_FD", BINDER_SOCK_FD);
+    // INFO("connected to the binder");
+    // DEBUG("BINDER_SOCK_FD", BINDER_SOCK_FD);
     server_sock->add_sockfd(BINDER_SOCK_FD);
 
     return ret;
@@ -185,7 +185,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
     SEGMENT *req_loc_segment = new SEGMENT(REQUEST_LOCATION, req_loc_message);
     sendSegment(binder_sock_fd, req_loc_segment);
 
-    INFO("location request sent");
+    // INFO("location request sent");
 
     delete req_loc_segment;
 
@@ -195,23 +195,23 @@ int rpcCall(char* name, int* argTypes, void** args) {
     close(binder_sock_fd);
     if (ret) return ret;
 
-    INFO("location response received");
+    // INFO("location response received");
     MESSAGE *res_loc_message = res_loc_segment->message;
 
     switch (res_loc_segment->type) {
         case LOCATION_SUCCESS:
         {
-            INFO("location success");
+            // INFO("location success");
             RES_LOC_SUCCESS_MESSAGE *res_loc_success_message = dynamic_cast<RES_LOC_SUCCESS_MESSAGE*>(res_loc_message);
             SERVER_ADDRESS = res_loc_success_message->serverID;
             SERVER_PORT = res_loc_success_message->port;
-            DEBUG("SERVER_ADDRESS", SERVER_ADDRESS);
-            DEBUG("SERVER_PORT", SERVER_PORT);
+            // DEBUG("SERVER_ADDRESS", SERVER_ADDRESS);
+            // DEBUG("SERVER_PORT", SERVER_PORT);
         }
         break;
         case LOCATION_FAILURE:
         {
-            INFO("location failure");
+            // INFO("location failure");
             RES_FAILURE_MESSAGE *res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_loc_message);
             ret = res_failure_message->reasonCode;
         }
@@ -233,7 +233,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
     SEGMENT *req_exec_segment = new SEGMENT(REQUEST_EXECUTE, req_execute_message);
     sendSegment(server_sock_fd, req_exec_segment);
 
-    INFO("execute request sent");
+    // INFO("execute request sent");
     delete req_exec_segment;
 
     // receive an execute response from the server
@@ -242,14 +242,14 @@ int rpcCall(char* name, int* argTypes, void** args) {
     close(server_sock_fd);
     if (ret) return ret;
 
-    INFO("execute response received");
+    // INFO("execute response received");
     MESSAGE *res_exec_message = res_exec_segment->message;
 
     switch (res_exec_segment->type) {
 
         case EXECUTE_SUCCESS:
         {
-            INFO("execute success");
+            // INFO("execute success");
             RES_EXEC_SUCCESS_MESSAGE *res_exec_success_message = dynamic_cast<RES_EXEC_SUCCESS_MESSAGE*>(res_exec_message);
 
             int argc = 1;
@@ -266,7 +266,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 
         case EXECUTE_FAILURE:
         {
-            INFO("execute failure");
+            // INFO("execute failure");
             RES_FAILURE_MESSAGE *res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_exec_message);
             ret = res_failure_message->reasonCode;
         }
@@ -284,7 +284,7 @@ int rpcCall(char* name, int* argTypes, void** args) {
 int rpcCacheCall(char* name, int* argTypes, void** args);
 
 int rpcRegister(char* name, int* argTypes, skeleton f) {
-    INFO("in rpcRegister");
+    // INFO("in rpcRegister");
     int ret = RETURN_SUCCESS;
 
     if (server_sock == NULL || server_sock->getError()) return ESOCKET;
@@ -293,7 +293,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
     MESSAGE *req_reg_message = new REQ_REG_MESSAGE(server_sock->getHostName(), server_sock->getPort(), name, argTypes);
     SEGMENT *req_reg_segment = new SEGMENT(REQUEST_REGISTER, req_reg_message);
     sendSegment(BINDER_SOCK_FD, req_reg_segment);
-    INFO("register request sent");
+    // INFO("register request sent");
 
     delete req_reg_segment;
 
@@ -304,13 +304,13 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 
     MESSAGE *res_reg_message = res_reg_segment->message;
 
-    INFO("register response received");
+    // INFO("register response received");
 
     switch (res_reg_segment->type) {
 
         case REGISTER_SUCCESS:
         {
-            INFO("register success");
+            // INFO("register success");
             RES_REG_SUCCESS_MESSAGE *res_reg_success_message = dynamic_cast<RES_REG_SUCCESS_MESSAGE*>(res_reg_message);
             FUNC_SIGNATURE func_signature(name, argTypes);
             server_sock->registerFunction(func_signature, f);
@@ -321,7 +321,7 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 
         case REGISTER_FAILURE:
         {
-            INFO("register failure");
+            // INFO("register failure");
             RES_FAILURE_MESSAGE *res_failure_message = dynamic_cast<RES_FAILURE_MESSAGE*>(res_reg_message);
             ret = res_failure_message->reasonCode;
         }
@@ -337,14 +337,15 @@ int rpcRegister(char* name, int* argTypes, skeleton f) {
 }
 
 int rpcExecute() {
-    INFO("in rpcExecute");
+    // INFO("in rpcExecute");
+    if (server_sock == NULL || server_sock->getError()) return ESOCKET;
     server_sock->run();
     delete server_sock;
     return RETURN_SUCCESS;
 }
 
 int rpcTerminate() {
-    INFO("in rpcTerminate");
+    // INFO("in rpcTerminate");
     char *BINDER_ADDRESS;
     int BINDER_PORT;
     int binder_sock_fd;
@@ -363,7 +364,7 @@ int rpcTerminate() {
     SEGMENT *req_term_segment = new SEGMENT(REQUEST_TERMINATE, req_term_message);
     sendSegment(binder_sock_fd, req_term_segment);
 
-    INFO("terminate request sent");
+    // INFO("terminate request sent");
     delete req_term_segment;
 
     close(binder_sock_fd);

@@ -55,6 +55,7 @@ struct FUNC_SIGNATURE;
 #define ENOFUNCTION      -13  // error no function found
 #define EIBINDER         -14  // error invalid binder
 #define ENOLOCATION      -15  // error no location found
+#define EDUPLOCATION     -16  // error duplicate location
 
 // warning codes
 #define WDUPREG          10   // warning duplicate registration
@@ -84,7 +85,7 @@ public:
     char *name;
     int *argTypes;
     REQ_REG_MESSAGE(char *serverID, int port, char *name, int *argTypes);
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -93,7 +94,7 @@ class RES_REG_SUCCESS_MESSAGE: public MESSAGE {
 public:
     int reasonCode;
     RES_REG_SUCCESS_MESSAGE(int reasonCode);
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -103,7 +104,7 @@ public:
     char *name;
     int *argTypes;
     REQ_LOC_MESSAGE(char *name, int *argTypes);
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -113,7 +114,7 @@ public:
     char *serverID;
     int port;
     RES_LOC_SUCCESS_MESSAGE(char *serverID, int port);
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -124,7 +125,7 @@ public:
     int *argTypes;
     void **args;
     REQ_EXEC_MESSAGE(char *name, int *argTypes, void **args);
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -135,14 +136,14 @@ public:
     int *argTypes;
     void **args;
     RES_EXEC_SUCCESS_MESSAGE(char *name, int *argTypes, void **args);
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
 // terminate message
 class REQ_TERM_MESSAGE: public MESSAGE {
 public:
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -151,7 +152,7 @@ class RES_FAILURE_MESSAGE: public MESSAGE {
 public:
     int reasonCode;
     RES_FAILURE_MESSAGE(int reasonCode);
-    int marshall() override;
+    int marshall();
     static MESSAGE* unmarshall(char *msg);
 };
 
@@ -174,13 +175,9 @@ public:
 // server socket for connections with binder and clients
 class SERVER_SOCK: public SOCK {
     std::map<FUNC_SIGNATURE, skeleton> funcmap;
-    pthread_mutex_t mutex_funcmap;
-    SCHEDULER *scheduler;
-    static void* run_scheduler(void *ptr);
 public:
     SERVER_SOCK(int portnum);
     int handle_request(int i);
-    static int handle_request(SOCK *sock, int sock_fd);
     int registerFunction(FUNC_SIGNATURE &signature, skeleton f);
     int executeFunction(FUNC_SIGNATURE &signature, int *argTypes, void **args);
 };

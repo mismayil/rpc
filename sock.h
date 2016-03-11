@@ -17,7 +17,6 @@ protected:
     int sock_fd, highsock_fd;
     int error;
     bool TERMINATED;
-    pthread_mutex_t mutex_conn;
     int init_socks();
     int handle_sock();
     int accept_socks();

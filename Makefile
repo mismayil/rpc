@@ -2,7 +2,7 @@
 CC = gcc
 CXX = g++
 AR = ar
-CXXFLAGS = -Wall -g -MMD -pthread -std=c++11
+CXXFLAGS = -Wall -g -MMD -pthread -std=c++0x
 ARFLAGS = rcs
 
 OBJECTS1 = protocol.o util.o scheduler.o sock.o binder.o
@@ -11,15 +11,15 @@ EXEC1 = binder
 OBJECTS2 = protocol.o util.o scheduler.o sock.o rpc.o
 EXEC2 = librpc.a
 
-OBJECTS3 = server.o server_functions.o server_function_skels.o
-EXEC3 = server
+# OBJECTS3 = server.o server_functions.o server_function_skels.o
+# EXEC3 = server
+#
+# OBJECTS4 = client.o
+# EXEC4 = client
 
-OBJECTS4 = client.o
-EXEC4 = client
-
-OBJECTS = ${OBJECTS1} ${OBJECTS2} ${OBJECTS3} ${OBJECTS4}
+OBJECTS = ${OBJECTS1} ${OBJECTS2}
 DEPENDS = ${OBJECTS:.o=.d}
-EXECS = ${EXEC1} ${EXEC2} ${EXEC3} ${EXEC4}
+EXECS = ${EXEC1} ${EXEC2}
 
 .PHONY: all clean
 
@@ -31,11 +31,11 @@ ${EXEC1}: ${OBJECTS1}
 ${EXEC2}: ${OBJECTS2}
 	${AR} ${ARFLAGS} $@ $^
 
-${EXEC3}: ${OBJECTS3}
-	${CXX} -L. $^ -lrpc -pthread -o $@
-
-${EXEC4}: ${OBJECTS4}
-	${CXX} -L. $^ -lrpc -pthread -o $@
+# ${EXEC3}: ${OBJECTS3}
+# 	${CXX} -L. $^ -lrpc -pthread -o $@
+#
+# ${EXEC4}: ${OBJECTS4}
+# 	${CXX} -L. $^ -lrpc -pthread -o $@
 
 -include ${DEPENDS}
 

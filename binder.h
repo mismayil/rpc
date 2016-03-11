@@ -13,7 +13,7 @@ class BINDER_SOCK: public SOCK {
     std::map<int, LOCATION> servermap;
 public:
     BINDER_SOCK(int portnum);
-    int handle_request(int i);
+    int handle_request(int sockfd);
     int registerLocation(int sock_fd, FUNC_SIGNATURE &signature, LOCATION &location);
     int getLocation(FUNC_SIGNATURE &signature, LOCATION &location);
     int removeLocation(int sock_fd);
