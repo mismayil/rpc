@@ -11,11 +11,10 @@
 class BINDER_SOCK: public SOCK {
     std::map<FUNC_SIGNATURE, std::deque<LOCATION>> funcmap;
     std::map<int, LOCATION> servermap;
-    pthread_mutex_t mutex_lock;
 public:
     BINDER_SOCK(int portnum);
-    int handle_request(int sock_fd);
-    int registerLocation(FUNC_SIGNATURE &signature, LOCATION &location);
+    int handle_request(int i);
+    int registerLocation(int sock_fd, FUNC_SIGNATURE &signature, LOCATION &location);
     int getLocation(FUNC_SIGNATURE &signature, LOCATION &location);
     int removeLocation(int sock_fd);
     int terminateLocations(SEGMENT *segment);

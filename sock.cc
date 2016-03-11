@@ -44,13 +44,11 @@ SOCK::SOCK(int portnum): TERMINATED(false) {
         connections[i] = CLOSED;
     }
 
-    scheduler = new SCHEDULER(this);
     pthread_mutex_init(&mutex_conn, NULL);
 }
 
 SOCK::~SOCK() {
     if (hostname) delete [] hostname;
-    if (scheduler) delete scheduler;
 }
 
 int SOCK::init_socks() {
@@ -96,26 +94,22 @@ int SOCK::handle_request(int sock_fd) { return RETURN_SUCCESS; }
 int SOCK::accept_socks() {
     if (FD_ISSET(sock_fd, &sock_fds)) handle_sock();
 
-    pthread_mutex_lock(&mutex_conn);
     for (int i = 0; i < MAX_CONNS; i++) {
-        if (FD_ISSET(connections[i], &sock_fds)) scheduler->add_job(connections[i]);
+        pthread_mutex_lock(&mutex_conn);
+        if (FD_ISSET(connections[i], &sock_fds)) {
+            pthread_mutex_unlock(&mutex_conn);
+            handle_request(connections[i]);
+            pthread_mutex_lock(&mutex_conn);
+        }
+        pthread_mutex_unlock(&mutex_conn);
     }
-    pthread_mutex_unlock(&mutex_conn);
+
 
     return RETURN_SUCCESS;
 }
 
-void* SOCK::run_scheduler(void *ptr) {
-    SCHEDULER *scheduler = (SCHEDULER *) ptr;
-    scheduler->run();
-    return NULL;
-}
-
 int SOCK::run() {
     listen(sock_fd, MAX_CONNS);
-
-    pthread_t scheduler_thread;
-    if(pthread_create(&scheduler_thread, NULL, run_scheduler, (void *) scheduler)) return ETHREAD;
 
     while (!TERMINATED) {
         init_socks();
@@ -127,8 +121,6 @@ int SOCK::run() {
 
     close(sock_fd);
 
-    scheduler->terminate();
-
     return RETURN_SUCCESS;
 }
 
@@ -139,7 +131,7 @@ bool SOCK::terminated() { return TERMINATED; }
 int SOCK::add_sockfd(int sockfd) {
     pthread_mutex_lock(&mutex_conn);
     for (int i = 0; i < MAX_CONNS; i++) {
-        if (connections[i] == 0) {
+        if (connections[i] == CLOSED) {
             connections[i] = sockfd;
             pthread_mutex_unlock(&mutex_conn);
             return RETURN_SUCCESS;
@@ -155,11 +147,10 @@ void SOCK::close_sockfd(int sockfd) {
     pthread_mutex_lock(&mutex_conn);
     for (int i = 0; i < MAX_CONNS; i++) {
         if (connections[i] == sockfd) {
-            connections[i] = 0;
+            connections[i] = CLOSED;
             break;
         }
     }
-    scheduler->remove_job(sockfd);
     close(sockfd);
     pthread_mutex_unlock(&mutex_conn);
 }

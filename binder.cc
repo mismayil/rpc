@@ -14,16 +14,13 @@
 
 using namespace std;
 
-BINDER_SOCK::BINDER_SOCK(int portnum): SOCK(portnum) {
-    pthread_mutex_init(&mutex_lock, NULL);
-}
+BINDER_SOCK::BINDER_SOCK(int portnum): SOCK(portnum) {}
 
-int BINDER_SOCK::registerLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
+int BINDER_SOCK::registerLocation(int sock_fd, FUNC_SIGNATURE &signature, LOCATION &location) {
     INFO("in registerLocation");
     deque<LOCATION> locations;
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
-    pthread_mutex_lock(&mutex_lock);
     it = funcmap.find(signature);
 
     if (it == funcmap.end()) {
@@ -37,7 +34,6 @@ int BINDER_SOCK::registerLocation(FUNC_SIGNATURE &signature, LOCATION &location)
 
         for (unsigned int i = 0; i < locations.size(); i++) {
             if (location == locations[i]) {
-                pthread_mutex_unlock(&mutex_lock);
                 INFO("location already exists");
                 return RETURN_FAILURE;
             }
@@ -50,7 +46,6 @@ int BINDER_SOCK::registerLocation(FUNC_SIGNATURE &signature, LOCATION &location)
     servermap.insert(pair<int, LOCATION>(sock_fd, location));
 
     print(funcmap);
-    pthread_mutex_unlock(&mutex_lock);
     INFO("location registered");
     return RETURN_SUCCESS;
 }
@@ -60,11 +55,9 @@ int BINDER_SOCK::getLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
     deque<LOCATION> locations;
     map<FUNC_SIGNATURE, deque<LOCATION>>::iterator it;
 
-    pthread_mutex_lock(&mutex_lock);
     it = funcmap.find(signature);
 
     if (it == funcmap.end()) {
-        pthread_mutex_unlock(&mutex_lock);
         INFO("no location found");
         return ENOLOCATION;
     }
@@ -85,7 +78,6 @@ int BINDER_SOCK::getLocation(FUNC_SIGNATURE &signature, LOCATION &location) {
     }
 
     print(funcmap);
-    pthread_mutex_unlock(&mutex_lock);
     INFO("location returned");
     return RETURN_SUCCESS;
 }
@@ -97,11 +89,9 @@ int BINDER_SOCK::removeLocation(int sock_fd) {
     deque<LOCATION>::iterator lit;
     deque<LOCATION> locations;
 
-    pthread_mutex_lock(&mutex_lock);
     sit = servermap.find(sock_fd);
 
     if (sit == servermap.end()) {
-        pthread_mutex_unlock(&mutex_lock);
         INFO("location not found");
         return WNOLOCATION;
     }
@@ -131,7 +121,6 @@ int BINDER_SOCK::removeLocation(int sock_fd) {
 
     print(funcmap);
     print(servermap);
-    pthread_mutex_unlock(&mutex_lock);
     DEBUG("location removed", sock_fd);
     return RETURN_SUCCESS;
 }
@@ -139,12 +128,10 @@ int BINDER_SOCK::removeLocation(int sock_fd) {
 int BINDER_SOCK::terminateLocations(SEGMENT *segment) {
     // send terminate request to all servers
     INFO("in terminateLocations");
-    pthread_mutex_lock(&mutex_lock);
     for (map<int, LOCATION>::iterator it = servermap.begin(); it != servermap.end(); it++) {
         sendSegment(it->first, segment);
         INFO("terminate request sent");
     }
-    pthread_mutex_unlock(&mutex_lock);
     INFO("all terminate requests sent");
     return RETURN_SUCCESS;
 }
@@ -175,7 +162,7 @@ int BINDER_SOCK::handle_request(int sock_fd) {
             FUNC_SIGNATURE func_signature(req_reg_message->name, req_reg_message->argTypes);
             LOCATION location(req_reg_message->serverID, req_reg_message->port);
 
-            ret = registerLocation(func_signature, location);
+            ret = registerLocation(sock_fd, func_signature, location);
 
             if (ret < RETURN_SUCCESS) {
                 // send a register failure response

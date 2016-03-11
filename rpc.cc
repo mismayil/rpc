@@ -13,6 +13,7 @@
 #include "protocol.h"
 #include "util.h"
 #include "sock.h"
+#include "scheduler.h"
 
 using namespace std;
 
@@ -21,6 +22,9 @@ static SERVER_SOCK *server_sock;
 
 SERVER_SOCK::SERVER_SOCK(int portnum): SOCK(portnum) {
     pthread_mutex_init(&mutex_funcmap, NULL);
+    scheduler = new SCHEDULER(this, handle_request);
+    pthread_t thread_scheduler;
+    pthread_create(&thread_scheduler, NULL, run_scheduler, (void *) scheduler);
 }
 
 int SERVER_SOCK::registerFunction(FUNC_SIGNATURE &signature, skeleton f) {
@@ -56,16 +60,22 @@ int SERVER_SOCK::executeFunction(FUNC_SIGNATURE &signature, int *argTypes, void 
     return ret;
 }
 
-// handle binder and client requests
-int SERVER_SOCK::handle_request(int sock_fd) {
+void* SERVER_SOCK::run_scheduler(void *ptr) {
+    SCHEDULER *scheduler = (SCHEDULER *) ptr;
+    scheduler->run();
+    return NULL;
+}
+
+int SERVER_SOCK::handle_request(SOCK *sock, int sock_fd) {
+    SERVER_SOCK *serv_sock = dynamic_cast<SERVER_SOCK*>(sock);
     INFO("in SERVER_SOCK handle_request");
-    //int sock_fd = connections[i];
+    //int sock_fd = i; //server_sock->connections[i];
     int ret = RETURN_SUCCESS;
 
     // receive a request from either binder or client
     SEGMENT *segment = NULL;
     if (recvSegment(sock_fd, &segment) < 0) {
-        close_sockfd(sock_fd);
+        serv_sock->close_sockfd(sock_fd);
         return ret;
     }
 
@@ -77,7 +87,7 @@ int SERVER_SOCK::handle_request(int sock_fd) {
             INFO("execute request");
             REQ_EXEC_MESSAGE *req_exec_message = dynamic_cast<REQ_EXEC_MESSAGE*>(segment->message);
             FUNC_SIGNATURE func_signature(req_exec_message->name, req_exec_message->argTypes);
-            ret = executeFunction(func_signature, req_exec_message->argTypes, req_exec_message->args);
+            ret = serv_sock->executeFunction(func_signature, req_exec_message->argTypes, req_exec_message->args);
 
             if (ret < RETURN_SUCCESS) {
                 // send an execute failure response to the client
@@ -105,7 +115,7 @@ int SERVER_SOCK::handle_request(int sock_fd) {
             if (sock_fd != BINDER_SOCK_FD) return EIBINDER;
 
             // terminate server
-            terminate();
+            serv_sock->terminate();
             INFO("terminated");
         }
 
@@ -116,6 +126,12 @@ int SERVER_SOCK::handle_request(int sock_fd) {
 
     delete segment;
 
+    return RETURN_SUCCESS;
+}
+
+// handle binder and client requests
+int SERVER_SOCK::handle_request(int sock_fd) {
+    scheduler->add_job(sock_fd);
     return RETURN_SUCCESS;
 }
 

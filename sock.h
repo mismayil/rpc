@@ -7,8 +7,6 @@
 #define ECONNOVERFLOW  -30
 #define CLOSED         -1
 
-class SCHEDULER;
-
 // socket class with select
 class SOCK {
 protected:
@@ -19,18 +17,16 @@ protected:
     int sock_fd, highsock_fd;
     int error;
     bool TERMINATED;
-    SCHEDULER *scheduler;
     pthread_mutex_t mutex_conn;
     int init_socks();
     int handle_sock();
     int accept_socks();
-    static void* run_scheduler(void *ptr);
 public:
     SOCK(int portnum);
     virtual ~SOCK();
     virtual int handle_request(int sock_fd);
     int add_sockfd(int sockfd);
-    void close_sockfd(int sockfd);
+    void close_sockfd(int i);
     char *getHostName();
     int getPort();
     int getSockfd();

@@ -60,6 +60,8 @@ struct FUNC_SIGNATURE;
 #define WDUPREG          10   // warning duplicate registration
 #define WNOLOCATION      11   // warning no location found
 
+class SCHEDULER;
+
 // rpc general message
 class MESSAGE {
 protected:
@@ -173,12 +175,16 @@ public:
 class SERVER_SOCK: public SOCK {
     std::map<FUNC_SIGNATURE, skeleton> funcmap;
     pthread_mutex_t mutex_funcmap;
+    SCHEDULER *scheduler;
+    static void* run_scheduler(void *ptr);
 public:
     SERVER_SOCK(int portnum);
-    int handle_request(int sock_fd);
+    int handle_request(int i);
+    static int handle_request(SOCK *sock, int sock_fd);
     int registerFunction(FUNC_SIGNATURE &signature, skeleton f);
     int executeFunction(FUNC_SIGNATURE &signature, int *argTypes, void **args);
 };
+
 
 // marshalls argTypes and args
 int marshallArgs(int *argTypes, void **args, char **buf, int *buflen);

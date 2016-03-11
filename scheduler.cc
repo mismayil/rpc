@@ -10,9 +10,10 @@
 
 using namespace std;
 
-SCHEDULER::SCHEDULER(SOCK *sock): sock(sock) {
+SCHEDULER::SCHEDULER(SOCK *sock, FUNC func): sock(sock), func(func), signalled(false) {
     pthread_mutex_init(&mutex_jobs, NULL);
     pthread_cond_init(&cond_jobs, NULL);
+    pthread_cond_init(&cond_bargers, NULL);
 }
 
 SCHEDULER::~SCHEDULER() {
@@ -35,21 +36,19 @@ int SCHEDULER::run() {
     return RETURN_SUCCESS;
 }
 
-void SCHEDULER::add_job(int sockfd) {
+void SCHEDULER::add_job(int i) {
     pthread_mutex_lock(&mutex_jobs);
-    DEBUG("ADD JOB", sockfd);
+    DEBUG("ADD JOB", i);
+    if (signalled && jobs.size() > 0) pthread_cond_wait(&cond_bargers, &mutex_jobs);
     for (unsigned int k = 0; k < jobs.size(); k++) {
-        if (jobs[k] == sockfd) {
-            jobs.erase(jobs.begin() + k);
-            break;
+        if (jobs[k] == i) {
+            pthread_mutex_unlock(&mutex_jobs);
+            return;
         }
     }
-    jobs.push_back(sockfd);
-    INFO("JOBS:");
-    for (unsigned int j = 0; j < jobs.size(); j++) {
-        DEBUG("JOB", jobs[j]);
-    }
-    pthread_cond_broadcast(&cond_jobs);
+    jobs.push_back(i);
+    signalled = true;
+    pthread_cond_signal(&cond_jobs);
     pthread_mutex_unlock(&mutex_jobs);
 }
 
@@ -57,32 +56,24 @@ void* SCHEDULER::execute_job(void *ptr) {
     SCHEDULER *scheduler = (SCHEDULER *) ptr;
 
     while (1) {
-        INFO("JOBS:");
         pthread_mutex_lock(&scheduler->mutex_jobs);
-        for (unsigned int j = 0; j < scheduler->jobs.size(); j++) {
-            DEBUG("JOB", scheduler->jobs[j]);
-        }
         INFO("waiting for a job...");
-        pthread_cond_wait(&scheduler->cond_jobs, &scheduler->mutex_jobs);
-        int sockfd = scheduler->jobs.back();
-        DEBUG("EXEC JOB", sockfd);
+        if (!scheduler->signalled && scheduler->jobs.size() == 0) pthread_cond_wait(&scheduler->cond_jobs, &scheduler->mutex_jobs);
+        int i = scheduler->jobs.back();
+        DEBUG("EXEC JOB", i);
         scheduler->jobs.pop_back();
+        pthread_cond_signal(&scheduler->cond_bargers);
+        scheduler->signalled = false;
         pthread_mutex_unlock(&scheduler->mutex_jobs);
-        if (sockfd == CLOSED) break;
-        scheduler->sock->handle_request(sockfd);
+        scheduler->func(scheduler->sock, i);
     }
 
     return NULL;
 }
 
-void SCHEDULER::remove_job(int sockfd) {
+void SCHEDULER::remove_job(int i) {
     pthread_mutex_lock(&mutex_jobs);
-    for (unsigned int i = 0; i < jobs.size(); i++) {
-        if (jobs[i] == sockfd) {
-            jobs.erase(jobs.begin() + i);
-            break;
-        }
-    }
+    jobs.erase(jobs.begin() + i);
     pthread_mutex_unlock(&mutex_jobs);
 }
 
