@@ -52,8 +52,7 @@ int SERVER_SOCK::handle_request(int sock_fd) {
         close_sockfd(sock_fd);
         return ret;
     }
-
-    // INFO("segment received");
+    
     switch (segment->type) {
 
         case REQUEST_EXECUTE:
