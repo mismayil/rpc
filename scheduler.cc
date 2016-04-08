@@ -38,7 +38,6 @@ int SCHEDULER::run() {
 
 void SCHEDULER::add_job(int i) {
     pthread_mutex_lock(&mutex_jobs);
-    DEBUG("ADD JOB", i);
     if (signalled && jobs.size() > 0) pthread_cond_wait(&cond_bargers, &mutex_jobs);
     for (unsigned int k = 0; k < jobs.size(); k++) {
         if (jobs[k] == i) {
@@ -57,10 +56,8 @@ void* SCHEDULER::execute_job(void *ptr) {
 
     while (1) {
         pthread_mutex_lock(&scheduler->mutex_jobs);
-        INFO("waiting for a job...");
         if (!scheduler->signalled && scheduler->jobs.size() == 0) pthread_cond_wait(&scheduler->cond_jobs, &scheduler->mutex_jobs);
         int i = scheduler->jobs.back();
-        DEBUG("EXEC JOB", i);
         scheduler->jobs.pop_back();
         pthread_cond_signal(&scheduler->cond_bargers);
         scheduler->signalled = false;
